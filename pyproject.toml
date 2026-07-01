@@ -1,0 +1,75 @@
+# Python Cookbook —— 可运行配方集的统一配置
+# 装齐核心工具: pip install -e ".[dev]"
+# 按需装领域依赖: pip install -e ".[ai]" / ".[backend]" / ".[data]"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pycookbook"
+version = "0.1.0"
+description = "存放 Python 语法与实战代码的配方集"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+# 基础依赖(几乎每个配方都可能用到的轻量库)
+dependencies = [
+    "rich>=13.0",       # 终端美化输出
+]
+
+# ───── 可选依赖分组:领域依赖重,按需安装,别默认全装 ─────
+[project.optional-dependencies]
+# 开发工具链(对应 10_ops/):代码质量 + 测试
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.0",
+]
+# 04_libraries 常用三方库
+libraries = [
+    "httpx>=0.27",
+    "pydantic>=2.0",
+    "loguru>=0.7",
+    "tenacity>=9.0",
+]
+# 07_backend
+backend = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "sqlalchemy>=2.0",
+    "redis>=5.0",
+]
+# 08_data
+data = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+]
+# 09_ai(依赖最重,torch 单独装以免拖累纯语法 demo)
+ai = [
+    "scikit-learn>=1.5",
+    "transformers>=4.44",
+]
+
+# ───── 工具配置(集中在这里,不散落成一堆文件)─────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# E/F=pyflakes+pycodestyle, I=isort, UP=pyupgrade, B=bugbear
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true   # 配方集里三方库类型不全,先放宽
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["*_demo.py", "test_*.py"]   # 纯语法 demo 用 assert 自验也能被收集
+addopts = "-q"
