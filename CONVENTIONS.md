@@ -36,6 +36,32 @@
 12. **项目名 `pycookbook`**(不是 python-cookbook)。
 13. **别把顶层命名为 `python` 或 `test`** —— 会和解释器概念、pytest/标准库 `test` 混淆。
 
+## Git 提交信息
+
+格式：`<type>(<scope>): <描述>`
+
+- **scope** 可选，填改动所在的库/模块名，如 `argparse`、`parquet`、`numpy`。
+- **描述**用中文，动词开头，不加句号，首行不超过 72 字。
+- **正文**（body）可选，空行隔开，一两句说清楚"为什么"即可，不要复述"改了什么"。
+
+| type | 含义 | 例子 |
+|------|------|------|
+| **feat** | 新功能，用户能感知的新能力 | `feat(argparse): 新增子命令示例` |
+| **fix** | 修 bug | `fix(parquet): 修复压缩参数缺失` |
+| docs | 只改文档、注释、README | `docs: 补充目录设计说明` |
+| style | 格式、空格，不改逻辑 | `style: 统一 type 打印格式` |
+| **refactor** | 重构，既不加功能也不修 bug | `refactor(argparse): 拆分 demo 函数` |
+| **perf** | 性能优化，功能不变 | `perf(parquet): 换用 snappy 压缩` |
+| test | 加/改测试代码 | `test: 补全 argparse 边界用例` |
+| build | 改构建系统、依赖 | `build: 升级 pyarrow 至 16.x` |
+| ci | 改 CI 流水线 | `ci: 新增 Windows 测试 job` |
+| **chore** | 杂务，不动 src 和测试 | `chore: 删除旧目录设计文档` |
+| revert | 回滚某次提交 | `revert: revert "feat: xxx"` |
+
+加粗为高频 type，其余按需使用。
+
+**工作方式**：提交说明由 Claude 生成文字，实际 `git commit` 由用户执行。
+
 ---
 
 > 新习惯确立后追加到这里,保持一句话一条、可执行、不啰嗦。
