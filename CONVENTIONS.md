@@ -14,6 +14,8 @@
 3. **一个库/主题一个子目录,内部按功能拆成多个带序号 `.py`** ——
    以 [`03_stdlib/01_argparse/`](03_stdlib/01_argparse/) 为范式(basic/types/actions/...),
    **不平铺成单个大文件**。
+4. **每个子目录下建 `00_description.py`** —— `print` 出该目录所有文件及一行内容摘要,
+   `python 00_description.py` 即可查看导航。序号 `00` 确保排在最前。
 
 ## 代码配方
 
