@@ -1,0 +1,21 @@
+[build-system]
+requires      = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name            = "mypkg"
+version         = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.28",       # 最低版本
+    "pandas>=2.0,<3.0",     # 范围约束
+    "numpy",                # 不限版本
+    "pydantic~=2.5",        # 兼容版本（~= 等价于 >=2.5,<3）
+]
+
+[project.optional-dependencies]
+dev  = ["pytest>=7", "ruff", "mypy"]   # pip install mypkg[dev]
+docs = ["sphinx", "sphinx-rtd-theme"]  # pip install mypkg[docs]
+
+[tool.setuptools.packages.find]
+where = ["src"]

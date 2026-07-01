@@ -1,0 +1,37 @@
+[build-system]
+requires      = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name            = "mypkg"
+version         = "0.1.0"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length    = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]  # pycodestyle / pyflakes / isort / pyupgrade
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]           # 测试文件允许 assert
+
+[tool.pytest.ini_options]
+testpaths      = ["tests"]
+addopts        = "-v --tb=short"
+filterwarnings = ["error"]
+
+[tool.mypy]
+python_version        = "3.10"
+strict                = true
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["src/mypkg"]
+omit   = ["*/tests/*"]
+
+[tool.coverage.report]
+fail_under   = 80
+show_missing = true

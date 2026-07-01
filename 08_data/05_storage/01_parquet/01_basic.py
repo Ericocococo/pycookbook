@@ -51,16 +51,63 @@ def demo02_columns():
 
 
 def demo03_compression():
-    """③ 压缩算法对比（同一份数据不同 compression 的体积）"""
-    print("③ 压缩对比(bytes):")
-    for comp in [
-        "snappy",   # Google 开发，速度优先
-        "gzip",     # 通用压缩，压缩比高，速度慢
-        "zstd",     # Facebook 开发（Zstandard），速度与压缩比均衡
-    ]:
-        path = DATA_DIR / f"q_{comp}.parquet"
-        df.to_parquet(path, compression=comp)
-        print(f"  {comp}: {path.stat().st_size}")
+    """③ 压缩算法对比：体积 / 写速度 / 读速度（用 10 万行数据让差异可见）"""
+    import time
+    import numpy as np
+
+    # 10 万行行情数据，让压缩效果和速度差异肉眼可见
+    rng = np.random.default_rng(42)
+    n = 100_000
+    big = pd.DataFrame({
+        "date":   pd.date_range("2020-01-01", periods=n, freq="min"),
+        "symbol": rng.choice(["AAPL", "MSFT", "GOOG", "AMZN"], n),
+        "close":  rng.uniform(100, 500, n).round(2),
+        "volume": rng.integers(100_000, 5_000_000, n),
+    })
+
+    algos = [
+        ("snappy", None),    # Google，速度优先，压缩比适中
+        ("gzip",   None),    # 通用，压缩比高，速度慢
+        ("zstd",   1),       # Facebook Zstandard level-1，极快
+        ("zstd",   9),       # Zstandard level-9，接近 gzip 压缩比但更快
+        (None,     None),    # 不压缩，作为基准
+    ]
+
+    results = []
+    for comp, level in algos:
+        label = "none" if comp is None else (f"zstd-{level}" if comp == "zstd" and level else comp)
+        path = DATA_DIR / f"big_{label}.parquet"
+        kwargs = {"compression": comp or "none"}
+        if comp == "zstd" and level:
+            kwargs["compression_level"] = level
+
+        t0 = time.perf_counter()
+        big.to_parquet(path, **kwargs)
+        write_ms = (time.perf_counter() - t0) * 1000
+
+        t0 = time.perf_counter()
+        pd.read_parquet(path)
+        read_ms = (time.perf_counter() - t0) * 1000
+
+        size_kb = path.stat().st_size / 1024
+        results.append((label, size_kb, write_ms, read_ms))
+
+    none_size = results[-1][1]
+    print("③ 压缩对比（10 万行，约 {:.0f} KB 无压缩）\n".format(none_size))
+    print(f"  {'算法':<10} {'大小(KB)':>10} {'压缩率':>8} {'写(ms)':>9} {'读(ms)':>9}")
+    print("  " + "-" * 52)
+    for label, size_kb, write_ms, read_ms in results:
+        ratio = size_kb / none_size
+        print(f"  {label:<10} {size_kb:>10.1f} {ratio:>7.1%} {write_ms:>9.1f} {read_ms:>9.1f}")
+
+    print("""
+  选型建议
+    snappy   读写最快，压缩比中等；实时落盘 / 频繁读写首选
+    zstd-1   速度接近 snappy，体积更小；日常推荐
+    zstd-9   压缩比接近 gzip，速度比 gzip 快数倍；归档冷数据
+    gzip     兼容性最好（Spark/Hive 默认支持），但速度最慢
+    none     下游工具自行压缩，或磁盘 IO 不是瓶颈时用
+""")
 
 
 def demo04_partition():

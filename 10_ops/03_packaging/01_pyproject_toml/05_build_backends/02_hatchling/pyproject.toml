@@ -1,0 +1,21 @@
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name            = "mypkg"
+requires-python = ">=3.10"
+dynamic         = ["version"]
+
+[tool.hatch.version]
+path = "src/mypkg/__init__.py"        # 从 __version__ = "x.y.z" 自动提取
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mypkg"]
+
+[tool.hatch.envs.default]
+dependencies = ["pytest", "ruff"]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest {args}"
+lint = "ruff check src/"

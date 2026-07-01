@@ -1,0 +1,22 @@
+[build-system]
+requires      = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name            = "mypkg"
+version         = "0.1.0"
+requires-python = ">=3.10"
+
+[project.scripts]
+mypkg      = "mypkg.cli:main"       # pip install 后 $ mypkg
+mypkg-init = "mypkg.cli:init_cmd"
+
+[project.gui-scripts]
+mypkg-gui = "mypkg.gui:launch"     # Windows 不弹 cmd 窗口
+
+[project.entry-points."mypkg.plugins"]
+json = "mypkg.formats.json:JsonPlugin"
+csv  = "mypkg.formats.csv:CsvPlugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
