@@ -9,7 +9,7 @@ from pathlib import Path
 DATA = Path(__file__).parent / "data"
 
 
-def demo_text():
+def demo01_text():
     """① write_text / read_text"""
     DATA.mkdir(exist_ok=True)
     p = DATA / "hello.txt"
@@ -22,8 +22,8 @@ def demo_text():
     print("  splitlines:", lines, type(lines))
 
 
-def demo_bytes():
-    """② write_bytes / read_bytes"""
+def demo02_bytes():
+    """② write_bytes / read_bytes —— 二进制读写，不经过编码转换"""
     DATA.mkdir(exist_ok=True)
     p = DATA / "data.bin"
     p.write_bytes(b"\x00\x01\x02\x03")
@@ -34,8 +34,8 @@ def demo_bytes():
     print("  len:", len(raw), type(len(raw)))
 
 
-def demo_open():
-    """③ open() 逐行读，大文件友好"""
+def demo03_open():
+    """③ open() 逐行读，大文件友好（避免一次性全读进内存）"""
     DATA.mkdir(exist_ok=True)
     p = DATA / "hello.txt"
     if not p.exists():
@@ -47,8 +47,8 @@ def demo_open():
 
 
 if __name__ == "__main__":
-    demo_text()
+    demo01_text()
     print()
-    demo_bytes()
+    demo02_bytes()
     print()
-    demo_open()
+    demo03_open()

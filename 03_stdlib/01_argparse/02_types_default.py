@@ -7,15 +7,15 @@ import argparse
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="type / default / required")
-    # type:自动把字符串转成指定类型,转换失败会打印错误并退出
+    # type：自动把命令行字符串转成指定类型，转换失败会打印错误并退出
     parser.add_argument("--count", type=int, default=1, help="次数(int,默认 1)")
     parser.add_argument("--ratio", type=float, default=0.5, help="比例(float)")
-    # required=True 让"可选参数"变成必填(不给就报错)
+    # required=True：让"可选参数"变成必填（不给就报错）
     parser.add_argument("--name", required=True, help="必填的名字")
     return parser
 
 
-def demo_all_given():
+def demo01_all_given():
     """① 全给(count 从字符串转成 int、ratio 转成 float,看类型)"""
     parser = build_parser()
     args = parser.parse_args([
@@ -29,7 +29,7 @@ def demo_all_given():
     print("  args.ratio:", args.ratio, type(args.ratio))
 
 
-def demo_defaults():
+def demo02_defaults():
     """② 不传 --count / --ratio,用默认值"""
     parser = build_parser()
     args = parser.parse_args([
@@ -41,7 +41,7 @@ def demo_defaults():
     print("  args.ratio:", args.ratio, type(args.ratio))
 
 
-def demo_missing_required():
+def demo03_missing_required():
     """③ 漏传必填 --name → argparse 打印 usage+error 并退出"""
     parser = build_parser()
     print("③ 缺少必填 --name:")
@@ -52,6 +52,6 @@ def demo_missing_required():
 
 
 if __name__ == "__main__":
-    demo_all_given()
-    demo_defaults()
-    demo_missing_required()
+    demo01_all_given()
+    demo02_defaults()
+    demo03_missing_required()
