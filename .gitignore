@@ -62,3 +62,7 @@ Thumbs.db
 *.onnx
 *.h5
 *.parquet
+
+# demo 运行产出(各配方脚本旁的 data/ 目录)
+data/
+/.claude/

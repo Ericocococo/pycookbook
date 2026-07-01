@@ -48,6 +48,7 @@ data = [
     "numpy>=2.0",
     "pandas>=2.2",
     "matplotlib>=3.9",
+    "pyarrow>=15.0",   # parquet / arrow 读写引擎
 ]
 # 09_ai(依赖最重,torch 单独装以免拖累纯语法 demo)
 ai = [
@@ -71,5 +72,5 @@ check_untyped_defs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["*_demo.py", "test_*.py"]   # 纯语法 demo 用 assert 自验也能被收集
+python_files = ["test_*.py"]   # demo 直接 python 运行看输出;正式测试写在 tests/ 下
 addopts = "-q"

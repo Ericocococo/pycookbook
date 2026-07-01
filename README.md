@@ -1,10 +1,10 @@
 # pycookbook
 
 > 一个存放 **Python 语法与实战代码**的配方集(cookbook)。
-> 每个配方都尽量**可直接运行**:纯语法用 `.py` + `assert` 自验,重环境的用 `.md` 笔记。
+> 每个配方都尽量**可直接运行**:纯语法用 `.py` + `print` 展示结果,重环境的用 `.md` 笔记。
 
 顶层按"知识的性质"分区,桶少而稳定;领域无限增长时往对应大区里加子目录,永远有明确落位。
-完整设计思路见 [目录设计文档](python-cookbook-目录设计.md)。
+完整设计思路见 [目录设计文档](STRUCTURE.md)。
 
 ---
 
@@ -42,12 +42,12 @@ pip install -e ".[ai]"           # 09_ai:        scikit-learn/transformers...
 | [`02_algorithms/`](02_algorithms/) | 数据结构 / 经典算法 / 设计模式 |
 | [`03_stdlib/`](03_stdlib/) | 常用标准库(查得最勤的那批) |
 | [`04_libraries/`](04_libraries/) | pip 装完即用、跨领域的工具型库 |
-| [`05_frameworks/`](05_frameworks/) | 框架生态,core → components → ecosystem |
+| [`05_frameworks/`](05_frameworks/) | 开源应用框架/领域平台(vnpy 等),学架构 + 二次开发 |
 | [`06_extending/`](06_extending/) | 扩展 Python / 高性能 / 跨语言(pybind11/cython/numba) |
 | [`07_backend/`](07_backend/) | 后端工程: web/db/search/mq/rpc/api/auth/task/微服务 |
 | [`08_data/`](08_data/) | 数据: 分析/可视化/工程/爬虫/存储 |
 | [`09_ai/`](09_ai/) | AI: ml/dl/rl/推荐/nlp/cv/llm/agent/mlops |
-| [`10_ops/`](10_ops/) | 工程化横切: 测试/质量/打包/CI/可观测 |
+| [`10_ops/`](10_ops/) | 工程化横切(纯工程活动): 测试/质量/打包/容器/CI/可观测/安全 |
 
 > 目录一律带两位序号前缀(`01_ 02_ ...`),**阅读顺序即学习/工程顺序**。
 
@@ -56,7 +56,7 @@ pip install -e ".[ai]"           # 09_ai:        scikit-learn/transformers...
 ## 怎么跑配方
 
 ```bash
-# 纯语法配方 —— 直接执行,内部 assert 会自验
+# 纯语法配方 —— 直接执行,打印运行结果
 python 01_language/01_basic/data_types.py
 
 # 或用 pytest 批量跑(*_demo.py 也会被收集)
@@ -83,9 +83,9 @@ make test
 
 ## 配方约定
 
-1. **纯语法用可运行 `.py` + `assert` 自验**;重框架/重环境的用 `.md` 笔记。
+1. **纯语法用可运行 `.py` + `print` 展示结果**;重框架/重环境的用 `.md` 笔记。
 2. **文件顶部注释写清版本 + 安装命令** —— 三方库 API 变动大(如 pydantic v1→v2)。
 3. **依赖统一锁在 `pyproject.toml`**,换机器一键装齐。
 4. **所有层级目录带两位序号前缀**,顺序即导航。
 
-更多细节见 [目录设计文档](python-cookbook-目录设计.md)。
+更多细节见 [目录设计文档](STRUCTURE.md)。

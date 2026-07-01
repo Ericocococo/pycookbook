@@ -1,0 +1,69 @@
+"""argparse 的 nargs(参数个数)与 choices(限定取值)
+
+标准库。Python 3.12。运行: python 04_nargs_choices.py
+
+nargs 取值:
+  N     固定 N 个,存成列表
+  "+"   一个或多个
+  "*"   零个或多个
+  "?"   零个或一个(配合 const 有三态行为)
+"""
+import argparse
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="nargs / choices")
+    # nargs=2:固定吃 2 个值,存成列表
+    parser.add_argument("--point", nargs=2, type=int, help="两个整数,如 --point 3 4")
+    # nargs="+":一个或多个
+    parser.add_argument("--files", nargs="+", help="一个或多个文件")
+    # nargs="?" 的三态:不给用 default,给了不带值用 const,给了带值用该值
+    parser.add_argument(
+        "--extra", nargs="?", default="none", const="given", help="三态参数"
+    )
+    # choices:限定只能从给定集合里选,否则报错
+    parser.add_argument("--level", choices=["low", "mid", "high"], default="low")
+    return parser
+
+
+def demo_full():
+    """① 全给"""
+    parser = build_parser()
+    args = parser.parse_args([
+        "--point", "3", "4",
+        "--files", "a", "b", "c",
+        "--level", "high",
+        "--extra", "x",
+    ])
+    print("① 全给:")
+    print("  args.point:", args.point)
+    print("  args.files:", args.files)
+    print("  args.level:", args.level)
+    print("  args.extra:", args.extra)
+
+
+def demo_nargs_optional():
+    """② nargs="?" 的三态(简短,直接对照)"""
+    parser = build_parser()
+    print("② nargs='?' 三态:")
+    print("  完全不给 --extra:", parser.parse_args([]).extra)
+    print("  给了但不带值:", parser.parse_args(["--extra"]).extra)
+    print("  给了带值 x:", parser.parse_args(["--extra", "x"]).extra)
+
+
+def demo_invalid_choice():
+    """③ choices 不在集合内 → 报错退出"""
+    parser = build_parser()
+    print("③ --level 传非法值 unknown:")
+    try:
+        parser.parse_args([
+            "--level", "unknown",
+        ])
+    except SystemExit:
+        print("  -> argparse 已报错并退出(符合预期)")
+
+
+if __name__ == "__main__":
+    demo_full()
+    demo_nargs_optional()
+    demo_invalid_choice()
