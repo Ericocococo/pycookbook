@@ -29,9 +29,9 @@ def demo_all_given():
         "-v",               # 布尔开关 verbose
     ])
     print("① 全给:")
-    print("  args.src:", args.src, f"({type(args.src).__name__})")
-    print("  args.output:", args.output, f"({type(args.output).__name__})")
-    print("  args.verbose:", args.verbose, f"({type(args.verbose).__name__})")
+    print("  args.src:", args.src, type(args.src))
+    print("  args.output:", args.output, type(args.output))
+    print("  args.verbose:", args.verbose, type(args.verbose))
 
 
 def demo_positional_only():
@@ -41,9 +41,9 @@ def demo_positional_only():
         "only_src.txt",
     ])
     print("② 只给位置参数:")
-    print("  args.src:", args.src, f"({type(args.src).__name__})")
-    print("  args.output:", args.output, f"({type(args.output).__name__})")
-    print("  args.verbose:", args.verbose, f"({type(args.verbose).__name__})")
+    print("  args.src:", args.src, type(args.src))
+    print("  args.output:", args.output, type(args.output))
+    print("  args.verbose:", args.verbose, type(args.verbose))
 
 
 def demo_long_short():
@@ -54,7 +54,7 @@ def demo_long_short():
         "--output", "b.txt",
     ])
     print("③ 长选项 --output 与 -o 等价:")
-    print("  args.output:", args.output, f"({type(args.output).__name__})")
+    print("  args.output:", args.output, type(args.output))
 
 
 if __name__ == "__main__":

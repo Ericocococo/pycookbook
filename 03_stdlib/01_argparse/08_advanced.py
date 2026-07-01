@@ -39,8 +39,8 @@ def demo_custom_type_action():
         "--name", "tom",
     ])
     print("① 自定义 type + action:")
-    print("  args.num:", args.num)
-    print("  args.name:", args.name, "(已转大写)")
+    print("  args.num:", args.num, type(args.num))
+    print("  args.name:", args.name, type(args.name), "(已转大写)")
 
 
 def demo_type_fail():
@@ -65,9 +65,9 @@ def demo_parse_known():
         "--foo", "bar",
     ])
     print("③ parse_known_args:")
-    print("  known.num:", known.num)
-    print("  known.name:", known.name)
-    print("  unknown:", unknown)
+    print("  known.num:", known.num, type(known.num))
+    print("  known.name:", known.name, type(known.name))
+    print("  unknown:", unknown, type(unknown))
 
 
 if __name__ == "__main__":

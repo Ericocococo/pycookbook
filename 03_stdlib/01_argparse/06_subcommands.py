@@ -43,10 +43,11 @@ def demo_add():
         "add",
         "tom",
     ])
+    result = args.func(args)
     print("① add 子命令:")
-    print("  args.cmd:", args.cmd)
-    print("  args.name:", args.name)
-    print("  分发调用 args.func(args):", args.func(args))
+    print("  args.cmd:", args.cmd, type(args.cmd))
+    print("  args.name:", args.name, type(args.name))
+    print("  分发调用 args.func(args):", result, type(result))
 
 
 def demo_remove():
@@ -57,11 +58,12 @@ def demo_remove():
         "jerry",
         "--force",
     ])
+    result = args.func(args)
     print("② remove 子命令:")
-    print("  args.cmd:", args.cmd)
-    print("  args.name:", args.name)
-    print("  args.force:", args.force)
-    print("  分发调用 args.func(args):", args.func(args))
+    print("  args.cmd:", args.cmd, type(args.cmd))
+    print("  args.name:", args.name, type(args.name))
+    print("  args.force:", args.force, type(args.force))
+    print("  分发调用 args.func(args):", result, type(result))
 
 
 if __name__ == "__main__":

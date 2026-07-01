@@ -16,7 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def demo_all_given():
-    """① 全给(count 会从字符串转成 int)"""
+    """① 全给(count 从字符串转成 int、ratio 转成 float,看类型)"""
     parser = build_parser()
     args = parser.parse_args([
         "--name", "tom",
@@ -24,9 +24,9 @@ def demo_all_given():
         "--ratio", "0.8",
     ])
     print("① 全给:")
-    print("  args.name:", args.name)
-    print("  args.count:", args.count, "->", type(args.count).__name__)
-    print("  args.ratio:", args.ratio)
+    print("  args.name:", args.name, type(args.name))
+    print("  args.count:", args.count, type(args.count))
+    print("  args.ratio:", args.ratio, type(args.ratio))
 
 
 def demo_defaults():
@@ -36,9 +36,9 @@ def demo_defaults():
         "--name", "jerry",
     ])
     print("② 用默认值:")
-    print("  args.name:", args.name)
-    print("  args.count:", args.count)
-    print("  args.ratio:", args.ratio)
+    print("  args.name:", args.name, type(args.name))
+    print("  args.count:", args.count, type(args.count))
+    print("  args.ratio:", args.ratio, type(args.ratio))
 
 
 def demo_missing_required():

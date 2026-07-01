@@ -36,11 +36,11 @@ def demo_actions():
         "-vvv",
     ])
     print("① 各 action 的结果:")
-    print("  args.flag_on:", args.flag_on)
-    print("  args.flag_off:", args.flag_off)
-    print("  args.mode:", args.mode)
-    print("  args.tag:", args.tag)
-    print("  args.v:", args.v)
+    print("  args.flag_on:", args.flag_on, type(args.flag_on))
+    print("  args.flag_off:", args.flag_off, type(args.flag_off))
+    print("  args.mode:", args.mode, type(args.mode))
+    print("  args.tag:", args.tag, type(args.tag))
+    print("  args.v:", args.v, type(args.v))
 
 
 def demo_defaults():
@@ -48,11 +48,11 @@ def demo_defaults():
     parser = build_parser()
     args = parser.parse_args([])
     print("② 都不传的默认:")
-    print("  args.flag_on:", args.flag_on)
-    print("  args.flag_off:", args.flag_off)
-    print("  args.mode:", args.mode)
-    print("  args.tag:", args.tag)
-    print("  args.v:", args.v)
+    print("  args.flag_on:", args.flag_on, type(args.flag_on))
+    print("  args.flag_off:", args.flag_off, type(args.flag_off))
+    print("  args.mode:", args.mode, type(args.mode))
+    print("  args.tag:", args.tag, type(args.tag))
+    print("  args.v:", args.v, type(args.v))
 
 
 def demo_version():

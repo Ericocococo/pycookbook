@@ -32,17 +32,18 @@ def demo_normal():
         "--json",
     ])
     print("① 正常(只给一个格式):")
-    print("  args.src:", args.src)
-    print("  args.dst:", args.dst)
-    print("  args.json:", args.json)
-    print("  args.yaml:", args.yaml)
+    print("  args.src:", args.src, type(args.src))
+    print("  args.dst:", args.dst, type(args.dst))
+    print("  args.json:", args.json, type(args.json))
+    print("  args.yaml:", args.yaml, type(args.yaml))
 
 
 def demo_group_help():
     """② argument_group 只影响帮助展示,不改变解析逻辑"""
     parser = build_parser()
+    has_title = "输入输出" in parser.format_help()
     print("② 帮助文本是否含分组标题 '输入输出':")
-    print("  ", "输入输出" in parser.format_help())
+    print("  ", has_title, type(has_title))
 
 
 def demo_mutual_exclusive():

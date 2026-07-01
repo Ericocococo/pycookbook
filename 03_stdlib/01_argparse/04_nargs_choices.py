@@ -36,19 +36,22 @@ def demo_full():
         "--extra", "x",
     ])
     print("① 全给:")
-    print("  args.point:", args.point)
-    print("  args.files:", args.files)
-    print("  args.level:", args.level)
-    print("  args.extra:", args.extra)
+    print("  args.point:", args.point, type(args.point))
+    print("  args.files:", args.files, type(args.files))
+    print("  args.level:", args.level, type(args.level))
+    print("  args.extra:", args.extra, type(args.extra))
 
 
 def demo_nargs_optional():
     """② nargs="?" 的三态(简短,直接对照)"""
     parser = build_parser()
+    no_extra = parser.parse_args([]).extra
+    bare = parser.parse_args(["--extra"]).extra
+    with_val = parser.parse_args(["--extra", "x"]).extra
     print("② nargs='?' 三态:")
-    print("  完全不给 --extra:", parser.parse_args([]).extra)
-    print("  给了但不带值:", parser.parse_args(["--extra"]).extra)
-    print("  给了带值 x:", parser.parse_args(["--extra", "x"]).extra)
+    print("  完全不给 --extra:", no_extra, type(no_extra))
+    print("  给了但不带值:", bare, type(bare))
+    print("  给了带值 x:", with_val, type(with_val))
 
 
 def demo_invalid_choice():
