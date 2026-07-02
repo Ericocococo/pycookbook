@@ -13,7 +13,11 @@ import numpy as np
 
 
 def demo01_create_rng():
-    """① 创建生成器:传 seed(种子)即可复现"""
+    """① 创建生成器:传 seed(种子)即可复现
+
+    rng.random(n) 生成 n 个服从 [0.0, 1.0) 连续均匀分布的浮点数
+    (左闭右开,每个值等概率),等价于旧 API 的 np.random.rand(n)。
+    """
     rng = np.random.default_rng(42)       # 固定种子 -> 每次运行结果相同
     print("① default_rng:")
     print("  type:", type(rng))
@@ -24,7 +28,20 @@ def demo01_create_rng():
 
 
 def demo02_distributions():
-    """② 常见分布:均匀 / 正态 / 整数 / 泊松等"""
+    """② 常见分布:均匀 / 正态 / 整数 / 泊松等
+
+    各分布通俗解释:
+      均匀分布 uniform    区间内每个值出现概率相等,如掷骰子、地图上随机撒点
+                          ※ random(n) 固定生成 [0,1);uniform(low,high,n) 可指定
+                             任意区间,即 random 是 uniform 在 [0,1) 上的特例
+      正态分布 normal     钟形曲线,大量独立小因素叠加的自然结果(身高、测量误差);
+                          由 均值 μ(曲线中心)与 标准差 σ(曲线胖瘦)两个参数决定
+      标准正态 standard_normal
+                          均值0、标准差1 的正态分布,相当于正态的"标准刻度尺"
+      随机整数 integers   指定区间内等概率的随机整数(离散型均匀分布)
+      泊松分布 poisson    单位时间/空间内"稀有独立事件发生次数"的分布,
+                          如每分钟进店人数、每页错别字数;参数 λ(lam)= 平均发生率
+    """
     rng = np.random.default_rng(0)
     print("② 各种分布:")
     print("  random((2,2)) 均匀[0,1):\n", rng.random((2, 2)))
