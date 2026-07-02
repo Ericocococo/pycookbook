@@ -26,6 +26,12 @@ uvicorn>=0.30
 sqlalchemy>=2.0
 redis>=5.0
 
+# ───── 07_backend/01_web(Web 框架配方:Flask/FastAPI/Tornado/Sanic)─────
+# FastAPI + uvicorn 已列在上面;这里补另外三个
+flask>=3.0
+tornado>=6.4
+sanic>=24.6
+
 # ───── 08_data ─────
 numpy>=2.0
 pandas>=2.2
