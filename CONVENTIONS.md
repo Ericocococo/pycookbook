@@ -14,12 +14,12 @@
 3. **一个库/主题一个子目录,内部按功能拆成多个带序号 `.py`** ——
    以 [`03_stdlib/01_argparse/`](03_stdlib/01_argparse/) 为范式(basic/types/actions/...),
    **不平铺成单个大文件**。
-   - **子目录名** 要说明内容，缩写和专业名词在 `00_description.py` 的 docstring 里解释，
+   - **子目录名** 要说明内容，缩写和专业名词在 `README.md` 里解释，
      如 `01_module_dunders`（module dunder = 模块双下划线特殊属性）。
 4. **每个主题都放在自己的子目录里**，不直接把 `.py` 散放在上级目录 ——
    以 `03_stdlib/01_argparse/`、`01_language/02_advanced/01_module_dunders/` 为范式。
-5. **只有叶子目录（直接含 `.py` 配方的目录）才建 `00_description.py`**，中间层目录不加 ——
-   `print` 出该目录所有文件及一行内容摘要，`python 00_description.py` 即可查看导航；序号 `00` 确保排在最前。
+5. **每个配方子目录都建 `README.md`**（GitHub 自动渲染，IDE Markdown 预览可读）——
+   内容格式见下方"配方内容约定"；`00_description.py` 已全部迁移为 `README.md`。
 6. **英文术语、缩写、专业名词必须解释** —— 包括英文缩写（`argv`/`nargs`/`dunder`）、
    中文缩写、框架专有名词（`schema`/`predicate pushdown`）等，让读者不查文档也能读懂。
    解释位置：短的一句话能说清的放行内注释；较长或多行解释的放 docstring 里。
