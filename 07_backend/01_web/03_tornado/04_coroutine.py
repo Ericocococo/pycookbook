@@ -5,7 +5,7 @@
 
 运行:
   python 04_coroutine.py         # 自测:真实 curl 打一遍(含并发验证)
-  python 04_coroutine.py serve   # 起服务,手动 curl:
+  python 04_coroutine.py --serve   # 起服务,手动 curl:
     curl 'http://127.0.0.1:9034/slow?ms=300'    # 单个慢请求(await 期间不阻塞别人)
     curl http://127.0.0.1:9034/gather           # 一个请求里并发发起多个异步任务
 
@@ -18,7 +18,6 @@
 """
 import asyncio
 import json
-import sys
 import time
 
 import tornado.web
@@ -76,7 +75,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         asyncio.run(main())
     else:
         from _curl_selftest import run_selftest

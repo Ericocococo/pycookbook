@@ -5,7 +5,7 @@
 
 运行:
   python 02_routing.py            # 自测:真实 curl 打一遍
-  python 02_routing.py serve      # 起服务,手动 curl:
+  python 02_routing.py --serve      # 起服务,手动 curl:
     curl http://127.0.0.1:8012/user/1                 # 路径参数(int 转换)
     curl 'http://127.0.0.1:8012/users?limit=2'        # 查询参数
     curl -X POST http://127.0.0.1:8012/user           # POST 方法
@@ -18,7 +18,6 @@
   ③ methods=[...] —— 一个路径按 HTTP 方法(GET/POST/PUT/DELETE)分发
 ================================================================================
 """
-import sys
 
 from flask import Flask, jsonify, request
 
@@ -84,7 +83,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         app.run(host="127.0.0.1", port=PORT)
     else:
         from _curl_selftest import run_selftest

@@ -5,7 +5,7 @@
 
 运行:
   python 02_routing.py            # 自测:真实 curl 打一遍
-  python 02_routing.py serve      # 起服务,手动 curl:
+  python 02_routing.py --serve      # 起服务,手动 curl:
     curl http://127.0.0.1:9042/user/1
     curl 'http://127.0.0.1:9042/users?limit=1'
     curl -X POST http://127.0.0.1:9042/user
@@ -19,7 +19,6 @@
 ================================================================================
 """
 import json
-import sys
 from functools import partial
 
 from sanic import Sanic
@@ -85,7 +84,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         app.run(host="127.0.0.1", port=PORT,
                 single_process=True, access_log=False, motd=False)
     else:

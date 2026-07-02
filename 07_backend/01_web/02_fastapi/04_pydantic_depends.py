@@ -5,7 +5,7 @@
 
 运行:
   python 04_pydantic_depends.py         # 自测:真实 curl 打一遍(含一条 422 校验失败)
-  python 04_pydantic_depends.py serve   # 起服务后:
+  python 04_pydantic_depends.py --serve   # 起服务后:
     curl -X POST http://127.0.0.1:8024/user \
          -H 'Content-Type: application/json' -d '{"name":"赵六","age":20}'
     curl 'http://127.0.0.1:8024/secure?token=secret'   # 依赖注入鉴权
@@ -18,7 +18,6 @@
   ④ /docs —— 基于以上信息自动生成交互式 API 文档,零额外代码
 ================================================================================
 """
-import sys
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -63,7 +62,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
     else:
         from _curl_selftest import run_selftest

@@ -5,7 +5,7 @@
 
 运行:
   python 04_blueprint_error.py         # 自测:真实 curl 打一遍
-  python 04_blueprint_error.py serve   # 起服务,手动 curl:
+  python 04_blueprint_error.py --serve   # 起服务,手动 curl:
     curl http://127.0.0.1:8014/api/ping          # 蓝图路由(带 /api 前缀)
     curl http://127.0.0.1:8014/api/boom          # 触发 500,看自定义错误 JSON
     curl http://127.0.0.1:8014/not-exist         # 404 自定义 JSON
@@ -16,7 +16,6 @@
   ② @app.errorhandler(404/500) —— 全局错误处理,统一返回 JSON 而非 HTML
 ================================================================================
 """
-import sys
 
 from flask import Blueprint, Flask, jsonify
 
@@ -66,7 +65,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         app.run(host="127.0.0.1", port=PORT)
     else:
         from _curl_selftest import run_selftest

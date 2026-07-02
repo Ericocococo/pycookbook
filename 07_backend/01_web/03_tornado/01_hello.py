@@ -5,7 +5,7 @@
 
 两种运行方式:
   ① 自测(推荐):python 01_hello.py
-  ② 手动:python 01_hello.py serve,再另开终端:
+  ② 手动:python 01_hello.py --serve,再另开终端:
         curl http://127.0.0.1:9031/            # 纯文本
         curl http://127.0.0.1:9031/json        # JSON
 
@@ -17,7 +17,6 @@ Tornado 是异步框架,用**类**组织请求处理:
 """
 import asyncio
 import json
-import sys
 
 import tornado.web
 
@@ -59,7 +58,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         asyncio.run(main())
     else:
         from _curl_selftest import run_selftest

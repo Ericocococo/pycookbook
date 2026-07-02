@@ -6,7 +6,7 @@
 两种运行方式:
   ① 自测(推荐):python 01_hello.py
      自动起 uvicorn 服务、用真实 curl 打一遍、打印响应、再关掉。
-  ② 手动:python 01_hello.py serve,再另开终端:
+  ② 手动:python 01_hello.py --serve,再另开终端:
         curl http://127.0.0.1:8021/            # 纯文本
         curl http://127.0.0.1:8021/json        # JSON
         浏览器打开 http://127.0.0.1:8021/docs   # 自动生成的交互文档(FastAPI 特色)
@@ -16,7 +16,6 @@ ASGI = 异步服务器网关接口,支持 async/await 的 Web 应用与服务器
 需要 uvicorn 这类 ASGI 服务器来跑。
 ================================================================================
 """
-import sys
 
 import uvicorn
 from fastapi import FastAPI
@@ -45,7 +44,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         # 阻塞启动 ASGI 服务(供手动 curl);log_level 降噪
         uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
     else:

@@ -5,7 +5,7 @@
 
 运行:
   python 04_middleware_blueprint.py         # 自测:真实 curl 打一遍
-  python 04_middleware_blueprint.py serve   # 起服务,手动 curl:
+  python 04_middleware_blueprint.py --serve   # 起服务,手动 curl:
     curl -i http://127.0.0.1:9044/api/ping    # 看中间件加的 X-Process-Time 响应头
     curl http://127.0.0.1:9044/api/hello/world
 
@@ -17,7 +17,6 @@
 ================================================================================
 """
 import json
-import sys
 import time
 from functools import partial
 
@@ -70,7 +69,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         app.run(host="127.0.0.1", port=PORT,
                 single_process=True, access_log=False, motd=False)
     else:

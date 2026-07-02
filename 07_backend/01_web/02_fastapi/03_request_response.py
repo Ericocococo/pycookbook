@@ -5,7 +5,7 @@
 
 运行:
   python 03_request_response.py         # 自测:真实 curl 打一遍
-  python 03_request_response.py serve   # 起服务,手动 curl:
+  python 03_request_response.py --serve   # 起服务,手动 curl:
     curl -X POST http://127.0.0.1:8023/echo \
          -H 'Content-Type: application/json' -d '{"name":"王五","age":18}'
     curl -i http://127.0.0.1:8023/headers
@@ -16,7 +16,6 @@
   ③ Response 形参上设 headers/status_code,或直接返回 JSONResponse → 自定义头和状态码
 ================================================================================
 """
-import sys
 
 import uvicorn
 from fastapi import FastAPI, Header, Response
@@ -60,7 +59,11 @@ CURL_CASES = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+    import argparse
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--serve", action="store_true",
+                     help="阻塞启动服务，供手动 curl / IDE 断点调试")
+    if _ap.parse_args().serve:
         uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
     else:
         from _curl_selftest import run_selftest
