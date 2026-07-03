@@ -79,6 +79,7 @@
 | build | 改构建系统、依赖 | `build: 升级 pyarrow 至 16.x` |
 | ci | 改 CI 流水线 | `ci: 新增 Windows 测试 job` |
 | **chore** | 杂务，不动 src 和测试 | `chore: 删除旧目录设计文档` |
+| **chore** | 提交调试状态（固定话术） | `chore: 临时调试改动（注释部分 demo 调用 / 增加临时 print）` |
 | revert | 回滚某次提交 | `revert: revert "feat: xxx"` |
 
 加粗为高频 type，其余按需使用。

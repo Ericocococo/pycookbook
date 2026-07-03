@@ -29,6 +29,7 @@ def demo01_write_read():
     path = DATA_DIR / "quotes.parquet"
     # engine="pyarrow"：指定底层引擎为 PyArrow（Apache Arrow 的 Python 绑定）
     # compression="snappy"：snappy 是 Google 开发的压缩算法，追求速度而非极限压缩比
+    print(df)
     df.to_parquet(path, engine="pyarrow", compression="snappy")
     print("① 写出 parquet:")
     print("  文件:", path.name)
@@ -36,6 +37,7 @@ def demo01_write_read():
 
     back = pd.read_parquet(path)
     print("② 读回来:")
+    print(back)
     print("  形状:", back.shape)
     print("  close 的 dtype:", back["close"].dtype)    # dtype = data type，数据类型
     print("  volume 的 dtype:", back["volume"].dtype)
@@ -46,6 +48,7 @@ def demo02_columns():
     path = DATA_DIR / "quotes.parquet"
     part = pd.read_parquet(path, columns=["date", "close"])
     print("② 只读 date + close 两列:")
+    print(part)
     print("  列:", list(part.columns))
     print("  行数:", len(part))
 

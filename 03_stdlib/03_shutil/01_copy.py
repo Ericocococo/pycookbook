@@ -31,9 +31,11 @@ def demo01_copyfile_copy():
 
     # copyfile:目标须是文件名,只拷内容
     r1 = shutil.copyfile(src, WORK / "a.txt")
+
     # copy:目标可给目录,自动沿用原文件名;并复制权限
     (WORK / "sub").mkdir()
     r2 = shutil.copy(src, WORK / "sub")
+
     # copy2:额外保留时间戳等元数据
     r3 = shutil.copy2(src, WORK / "b.txt")
 
@@ -41,7 +43,10 @@ def demo01_copyfile_copy():
     print("  copyfile ->", Path(r1).name, type(r1))
     print("  copy 到目录 ->", Path(r2).name, "(自动用原名)")
     print("  copy2 ->", Path(r3).name)
+
     # 验证 copy2 保留了修改时间(mtime 一致)
+    print(src.stat())
+    print(Path(r3).stat())
     same_mtime = src.stat().st_mtime == Path(r3).stat().st_mtime
     print("  copy2 保留 mtime:", same_mtime)
 
@@ -101,10 +106,10 @@ def demo04_copymode_copystat():
 if __name__ == "__main__":
     setup()
     demo01_copyfile_copy()
-    print()
-    demo02_copytree()
-    print()
-    demo03_ignore_and_exist()
-    print()
-    demo04_copymode_copystat()
-    print("\n产物已生成在:", WORK)
+    # print()
+    # demo02_copytree()
+    # print()
+    # demo03_ignore_and_exist()
+    # print()
+    # demo04_copymode_copystat()
+    # print("\n产物已生成在:", WORK)
