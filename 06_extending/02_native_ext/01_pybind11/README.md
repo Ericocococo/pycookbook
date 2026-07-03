@@ -24,6 +24,66 @@
 └── demo.py          ← Python 侧演示（首次运行自动触发 CMake 编译）
 ```
 
+## 快速上手
+
+### 方式一：直接运行 demo.py（推荐）
+
+`demo.py` 首次运行时自动触发 CMake 编译，之后直接输出结果，无需手动 cmake。
+
+```bash
+# 进入任意一个配方目录
+cd 01_basic
+
+# 运行（首次自动编译 C++，编译完直接跑 demo）
+python demo.py
+```
+
+首次输出示例：
+```
+[CMake] 编译 pb_basic ...
+① add(3, 4) = 7 <class 'int'>
+  add(a=10, b=20) = 30
+...
+```
+
+之后再运行跳过编译，直接输出结果。
+
+### 方式二：手动 CMake 构建
+
+```bash
+cd 01_basic
+mkdir build && cd build
+
+# 1. 配置（需先激活 MSVC 环境，或直接用 demo.py 自动处理）
+cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl.exe
+
+# 2. 编译
+cmake --build .
+
+# 3. 运行 demo
+cd ..
+python demo.py
+```
+
+### 方式三：CLion 打开单个配方
+
+1. `File → Open` → 选择 `01_basic/` 文件夹（CMakeLists.txt 所在目录）
+2. CLion 自动识别 CMake 项目并配置工具链
+3. 点击 **Build** 编译 C++ 扩展
+4. 终端里运行 `python demo.py`
+
+### 一次运行所有配方
+
+```bash
+# 在 01_pybind11/ 目录下执行
+for d in 01_basic 02_class 03_inheritance 04_stl 05_numpy 06_exceptions 07_callbacks 08_advanced; do
+    echo "=== $d ==="
+    python $d/demo.py
+done
+```
+
+---
+
 ## 前置依赖
 
 ```bash
