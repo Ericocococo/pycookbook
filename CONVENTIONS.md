@@ -21,8 +21,21 @@
 5. **每个配方子目录都建 `README.md`**（GitHub 自动渲染，IDE Markdown 预览可读）——
    内容格式见下方"配方内容约定"；`00_description.py` 已全部迁移为 `README.md`。
 6. **英文术语、缩写、专业名词必须解释** —— 包括英文缩写（`argv`/`nargs`/`dunder`）、
-   中文缩写、框架专有名词（`schema`/`predicate pushdown`）等，让读者不查文档也能读懂。
-   解释位置：短的一句话能说清的放行内注释；较长或多行解释的放 docstring 里。
+   中文缩写、框架专有名词（`WSGI`/`GIL`/`predicate pushdown`）等，让读者不查文档也能读懂。
+   解释位置按**作用范围**选择，不混用：
+   - **行内注释**：术语首次出现、一句话能说清 →
+     `# argv = argument vector，命令行参数列表`
+   - **`demoXX` 函数 docstring**：该 demo 特有的、需 2～3 句说清的术语 →
+     在 docstring 末尾加"术语："段落，如：`"""...\\n术语：ufunc = universal function，逐元素向量化函数"""`
+   - **`README.md`**：模块/主题级别、跨多个 demo 都要用到的核心概念 →
+     放在"## 核心速查"前加"## 核心概念"小节，或直接在速查代码的注释里标注
+
+7. **`README.md` 里凡是引用文件、目录、其他文档的，必须写成可点击超链接** ——
+   用 `[显示文字](相对路径)` 格式，不写裸路径文本。
+   - 同目录文件：`[01_basic.py](01_basic.py)`
+   - 子目录：`[01_numpy/](01_numpy/)`
+   - 跨目录：`[flask README](../01_flask/README.md)`
+   - 错误示例：`见 03_stdlib/01_argparse/01_basic.py`（不可点击，禁止）
 
 ## 代码配方
 
