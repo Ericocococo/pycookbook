@@ -17,10 +17,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-sys.path.insert(0, str(HERE.parent))   # _cmake_build 在上级目录
+sys.path.insert(0, str(HERE.parent))  # _cmake_build 在上级目录
 from _cmake_build import build_and_import  # noqa: E402
-
-
 
 _m = None  # 编译后指向扩展模块
 
@@ -41,15 +39,15 @@ def demo02_kwargs():
 
 def demo03_overload():
     """③ 重载函数"""
-    print("③ power(2, 10) =", _m.power(2, 10))           # 整数次幂
+    print("③ power(2, 10) =", _m.power(2, 10))  # 整数次幂
     print("  power_f(2.0, 0.5) =", _m.power_f(2.0, 0.5))  # 开方 = 1.414...
 
 
 def demo04_lambda():
     """④ lambda 内联绑定"""
-    print("④ clamp(5.0, 0.0, 3.0) =", _m.clamp(5.0, 0.0, 3.0))    # 截到上界 3.0
-    print("  clamp(-1.0, 0.0, 1.0) =", _m.clamp(-1.0, 0.0, 1.0))   # 截到下界 0.0
-    print("  clamp(0.5, 0.0, 1.0)  =", _m.clamp(0.5, 0.0, 1.0))    # 不变
+    print("④ clamp(5.0, 0.0, 3.0) =", _m.clamp(5.0, 0.0, 3.0))  # 截到上界 3.0
+    print("  clamp(-1.0, 0.0, 1.0) =", _m.clamp(-1.0, 0.0, 1.0))  # 截到下界 0.0
+    print("  clamp(0.5, 0.0, 1.0)  =", _m.clamp(0.5, 0.0, 1.0))  # 不变
 
 
 def demo05_attrs():
@@ -68,7 +66,9 @@ def demo06_return_policy():
 
 
 if __name__ == "__main__":
-    _m = build_and_import(HERE, "pb_basic")
+    # _m = build_and_import(HERE, "pb_basic", 'auto')
+    _m = build_and_import(HERE, "pb_basic", 'msvc')
+    # _m = build_and_import(HERE, "pb_basic", 'mingw')
     if _m is None:
         sys.exit(0)
     demo01_basic()
