@@ -32,7 +32,9 @@ def demo03_glob():
     """③ glob / rglob / iterdir 目录遍历"""
     stdlib = Path(__file__).parent.parent   # 03_stdlib/
     # rglob = recursive glob，递归匹配；glob = 通配符匹配（源自 Unix glob 命令）
-    py_files = sorted(stdlib.rglob("*.py"))
+    result = stdlib.rglob("*.py")
+    # print(result)
+    py_files = sorted(result)
     print("③ rglob('*.py') 结果（前 5 条）:")
     for f in py_files[:5]:
         print(" ", f, type(f))
@@ -45,8 +47,10 @@ def demo03_glob():
 
 
 if __name__ == "__main__":
-    demo01_exists()
-    print()
-    demo02_stat()
-    print()
+    # demo01_exists()
+    # print()
+
+    # demo02_stat()
+    # print()
+
     demo03_glob()

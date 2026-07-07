@@ -188,7 +188,7 @@ def demo04_shell_pipe_vs_python():
 
 
 if __name__ == "__main__":
-    demo01_two_process_pipe()
-    demo02_three_process_pipe()
-    demo03_deadlock_safe()
+    # demo01_two_process_pipe()
+    # demo02_three_process_pipe()
+    # demo03_deadlock_safe()
     demo04_shell_pipe_vs_python()

@@ -31,26 +31,44 @@ def demo02_sys_modules():
     """② sys.modules：已加载模块缓存 dict；查看/删除模块缓存"""
     print("② sys.modules —— 已加载模块缓存")
 
-    # 查看是否已加载
-    print("  'os' 是否已加载（import 前）:", "os" in sys.modules)
-    import os  # noqa: F401（此处 import 是为了演示缓存，而非使用 os）
-    print("  'os' 是否已加载（import 后）:", "os" in sys.modules)
-    print("  缓存中的 os 对象:", sys.modules["os"])
+    # ── import 前后对比 ───────────────────────────────────────────────────────
+    # 注意：os / sys / json 等常用模块在 Python 启动时已被自动加载，
+    # 用它们演示会导致 import 前后都是 True，看不出变化。
+    # colorsys 是标准库里不会被自动加载的模块，适合演示。
 
+    # 确保 colorsys 不在缓存里（万一之前被加载过）
+    sys.modules.pop("colorsys", None)
+
+    print("  'colorsys' import 前:", "colorsys" in sys.modules)   # False
+    import colorsys  # noqa: F401
+    print("  'colorsys' import 后:", "colorsys" in sys.modules)   # True
+    print("  缓存对象:", sys.modules["colorsys"])
+
+    # ── pop 清除缓存 ──────────────────────────────────────────────────────────
+    # sys.modules.pop(name, None) 比 del sys.modules[name] 更安全：
+    # key 不存在时返回 None 而不是抛 KeyError
     print()
-    # 手动删除缓存，触发重新 import
-    import textwrap              # 先 import，保证在缓存里
+    sys.modules.pop("colorsys", None)
+    print("  pop 后 'colorsys' 在缓存里:", "colorsys" in sys.modules)   # False
+
+    # ── 重新加载验证（id 变化）────────────────────────────────────────────────
+    # pop 后重新 import，Python 会从磁盘重新加载，产生新的模块对象
+    print()
+    import textwrap
     id_before = id(sys.modules["textwrap"])
-    del sys.modules["textwrap"]  # 清除缓存
-    import textwrap              # 重新从文件加载  # noqa: F811
+    sys.modules.pop("textwrap", None)
+    import textwrap  # noqa: F811
     id_after = id(sys.modules["textwrap"])
-    print("  textwrap 删缓存前 id:", id_before)
+    print("  textwrap pop 前 id:", id_before)
     print("  textwrap 重新 import 后 id:", id_after)
-    print("  id 相同?", id_before == id_after, "（不同说明重新加载了新模块对象）")
+    print("  id 不同（新对象）:", id_before != id_after)
 
+    # ── 实际用途 ──────────────────────────────────────────────────────────────
     print()
-    print("  提示: 生产代码请用 importlib.reload() 而非手动 del sys.modules[...]")
-    print("    reload() 更安全，会更新已有引用而不是创建新对象")
+    print("  实际用途：")
+    print("    - pybind11 扩展重新编译后，pop 旧缓存让 import_module 加载新 .pyd")
+    print("    - 强制重新加载某个模块（生产代码建议用 importlib.reload()，更安全）")
+    print("    - 临时隔离测试，避免模块状态污染")
 
 
 def demo03_builtin_modules():
@@ -110,12 +128,16 @@ def demo05_import_hooks():
 
 
 if __name__ == "__main__":
-    demo01_sys_path()
-    print()
-    # demo02_sys_modules()
+    # demo01_sys_path()
     # print()
+
+    demo02_sys_modules()
+    print()
+
     # demo03_builtin_modules()
     # print()
+
     # demo04_stdlib_names()
     # print()
+
     # demo05_import_hooks()

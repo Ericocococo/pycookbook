@@ -110,7 +110,7 @@ def demo03_shell_injection():
     print(f"    命令字符串: type {malicious}")
     print("    '&' 后面的命令会被 shell 执行！（这里不实际运行，防止演示出错）")
     # 取消下面这行注释可以看到注入效果：
-    # subprocess.run(f"type {malicious}", shell=True)
+    subprocess.run(f"type {malicious}", shell=True)
 
     print()
     print("  [安全] list 参数，shell=False（默认）:")
