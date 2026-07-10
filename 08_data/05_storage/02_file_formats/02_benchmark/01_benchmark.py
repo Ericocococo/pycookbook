@@ -153,7 +153,10 @@ def run_benchmark():
             continue
 
         if w is None:
-            print(f"  {name:<18} 跳过（未安装依赖）")
+            install_hint = {
+                "HDF5(h5py+gzip)": "pip install h5py",
+            }.get(name, "pip install <依赖>")
+            print(f"  {name:<18} 跳过（未安装依赖：{install_hint}）")
             continue
 
         if name == "CSV":
