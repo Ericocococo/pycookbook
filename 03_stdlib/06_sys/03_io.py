@@ -113,6 +113,63 @@ def demo05_write_vs_print():
     print("    print(*)  — 自动 sep 连接、end 结尾、支持 file 参数，更易用")
 
 
+def demo06_flush():
+    """⑥ flush：强制刷新缓冲区，确保内容立即输出"""
+    print("⑥ flush 用法")
+    import time
+
+    # stdout 默认行缓冲（终端）或块缓冲（管道/文件），flush 强制立即写出
+    print("  进度: ", end="", flush=True)        # print 的 flush 参数，等价于手动调 flush()
+    for i in range(1, 4):
+        time.sleep(0.1)
+        print(f"{i}.. ", end="", flush=True)     # 不 flush 的话进度点会积压在缓冲区，结束才一次打出
+    print("完成")
+
+    print()
+    # 手动调用
+    sys.stdout.write("  手动 write + flush\n")
+    sys.stdout.flush()                            # 等价于 print(..., flush=True)
+
+    print()
+    print("  适用场景:")
+    print("    进度条、实时日志：每次输出后 flush，确保终端立即显示")
+    print("    重定向到管道时：管道是块缓冲，不 flush 可能导致输出延迟或丢失")
+
+
+def demo07_stream_param():
+    """⑦ stream 参数：把 stdout / StringIO 传给第三方工具"""
+    print("⑦ stream 参数传递")
+
+    # 很多工具接收 stream 参数，默认写 sys.stdout，可以换成任意文件对象
+    import pprint
+
+    data = {"name": "Alice", "scores": [95, 87, 92], "active": True}
+
+    print("  写到 stdout（默认）:")
+    pprint.pprint(data, stream=sys.stdout, indent=4)   # stream=sys.stdout 可省略，这里显式写出
+
+    # 写到 StringIO，捕获为字符串
+    buf = io.StringIO()
+    pprint.pprint(data, stream=buf, indent=4)          # 输出重定向到内存缓冲
+    captured = buf.getvalue()
+    print(f"  捕获到 {len(captured)} 字符，首行: {captured.splitlines()[0]!r}")
+
+    # 写到文件
+    import pathlib
+    out = pathlib.Path(__file__).parent / "data"
+    out.mkdir(exist_ok=True)
+    with open(out / "pprint_out.txt", "w", encoding="utf-8") as f:
+        pprint.pprint(data, stream=f, indent=4)        # 直接写入文件，不经 stdout
+    print(f"  已写入文件: pprint_out.txt")
+
+    print()
+    print("  支持 stream 参数的常见工具:")
+    print("    pprint.pprint(obj, stream=...)")
+    print("    pstats.Stats(pr, stream=...)")
+    print("    logging.StreamHandler(stream=...)")
+    print("    argparse.ArgumentParser(prog, ...) → 内部也接受自定义 stream")
+
+
 if __name__ == "__main__":
     demo01_streams()
     print()
@@ -123,3 +180,7 @@ if __name__ == "__main__":
     demo04_redirect_stdout()
     print()
     demo05_write_vs_print()
+    print()
+    demo06_flush()
+    print()
+    demo07_stream_param()
