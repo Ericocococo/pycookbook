@@ -73,33 +73,66 @@ def demo01_explain():
     stats = pstats.Stats(pr, stream=sys.stdout)  # 把 Profile 原始数据转成可操作的统计对象，输出到 stdout
     stats.strip_dirs()              # 去掉文件路径前缀，只保留文件名
     stats.sort_stats("tottime")     # 按自身耗时排序（不含子函数）
-    stats.print_stats(6)            # 只打印前 6 行；传字符串则按文件名/函数名过滤
+    # print_stats 参数规则（第一次出现，后续 demo 不再重复）：
+    #   整数 N      → 只显示前 N 行，输出自动提示 "List reduced from X to N due to restriction <N>"
+    #   浮点 0~1   → 显示前 N% 的行（如 0.5 = 前 50%）
+    #   字符串      → 按函数名或文件名做正则过滤，只显示匹配行
+    #   无参数      → 显示全部
+    #   可叠加      → print_stats(10, "mymodule") 先过滤再取前 10 行
+    stats.print_stats(6)
 
     print("""
-  字段说明（对照上方输出）：
+  字段说明（对照上方输出逐列理解）：
 
-  ncalls   调用次数
-             200001  → 普通调用
-             3/1     → 有递归：3 次总调用 / 1 次原始调用
+  表头两行：
+    200008 function calls in 0.092 seconds
+      · 200008       — 本次共捕获到的函数调用总次数（含所有嵌套层级）
+      · 0.092 seconds — 被分析代码段的总运行时间
 
-  tottime  函数自身耗时，不含它调用的子函数     ← 找真正热点看这列
-             slow_io tottime=0.032  说明拼接本身慢
+    Ordered by: internal time
+      · 说明当前结果按哪个字段排序
+      · internal time = tottime（自身耗时）的别名
+      · 其他排序对应名称：
+          cumulative time  ← sort_stats("cumulative")
+          call count       ← sort_stats("ncalls")
+          file name        ← sort_stats("filename")
 
-  percall  tottime / ncalls（每次调用平均自身耗时）
+  ┌─────────────────────────────────────────────────────────────────┐
+  │ ncalls  tottime  percall  cumtime  percall  filename:lineno(fn) │
+  └─────────────────────────────────────────────────────────────────┘
 
-  cumtime  含子函数的累计耗时                   ← 找慢调用链看这列
-             main_workflow cumtime=0.090，但 tottime≈0
-             说明它本身不慢，慢在它调用的子函数里
+  ncalls —— 调用次数
+    · 整数（如 200001）：普通调用，共调用了这么多次
+    · A/B（如 3/1）：有递归。A = 总调用次数（含递归），B = 原始调用次数
+      例：fib(5) 递归展开调用 fib 共 15 次，但原始调用只有 1 次 → 显示 15/1
 
-  percall  cumtime / ncalls
+  tottime —— 函数自身耗时（不含它内部调用的子函数）← 找真正热点看这列
+    · slow_io  tottime=0.032  → 字符串拼接本身耗时 32ms，慢点就在这里
+    · main_workflow tottime≈0 → 它只是调度，自身几乎不耗时
+    · 规律：tottime 高的函数才是真正的性能瓶颈
 
-  filename:lineno(function)  精确定位到文件+行号+函数名
+  percall（第一个）—— tottime / ncalls
+    · 每次调用的平均自身耗时
+    · 适合对比"同一函数在不同参数下单次调用的代价"
 
-  sort_stats 排序参数：
-    cumulative  累计时间，找慢调用链入口（先用这个）
-    tottime     自身时间，确认真正的热点（再用这个）
-    ncalls      调用次数，找高频调用
-    filename    按文件名
+  cumtime —— 含子函数的累计耗时 ← 找慢调用链入口看这列
+    · main_workflow cumtime=0.090，但 tottime≈0
+      → 它本身不慢，慢是因为它调用了 slow_io / fast_io / compute
+    · cumtime = tottime + 所有子函数的 cumtime
+    · 规律：cumtime 高但 tottime 低 → 慢在它的子函数里，继续往下追
+
+  percall（第二个）—— cumtime / ncalls
+    · 每次调用的平均累计耗时（含子函数）
+
+  filename:lineno(function) —— 精确定位
+    · 01_cprofile.py:29(slow_io) → 在 01_cprofile.py 第 29 行定义的 slow_io
+    · {built-in method ...}      → C 实现的内置函数，无 Python 源码行号
+    · {method 'join' of 'str'}   → str 类的内置方法
+
+  ── 分析策略 ─────────────────────────────────────────────────────
+  第一步：sort_stats("cumulative") → 按 cumtime 排，找到最慢的调用入口
+  第二步：sort_stats("tottime")    → 按 tottime 排，锁定真正的热点函数
+  第三步：print_callers("慢函数")  → 确认谁在调用这个热点
 """)
 
 
@@ -156,11 +189,14 @@ def demo04_filter():
     stats.strip_dirs()
     stats.sort_stats("tottime")
 
-    print("  -- 只看本文件里的函数 --")
-    stats.print_stats("01_cprofile")
+    print("  -- 只看本文件里的函数（字符串过滤）--")
+    stats.print_stats("01_cprofile")    # 文件名含 "01_cprofile" 的行
 
     print("  -- 只看函数名含 io 的行 --")
-    stats.print_stats("io")
+    stats.print_stats("io")             # 函数名含 "io" 的行
+
+    print("  -- 前 50% 的行（浮点）--")
+    stats.print_stats(0.5)              # 显示排序后前半部分
 
 
 # ---------------------------------------------------------------------------
@@ -241,8 +277,8 @@ def demo07_vs_timeit():
 if __name__ == "__main__":
     demo01_explain()
     demo02_run()
-    # demo03_profile()
-    # demo04_filter()
-    # demo05_callers_callees()
-    # demo06_save_and_merge()
-    # demo07_vs_timeit()
+    demo03_profile()
+    demo04_filter()
+    demo05_callers_callees()
+    demo06_save_and_merge()
+    demo07_vs_timeit()
