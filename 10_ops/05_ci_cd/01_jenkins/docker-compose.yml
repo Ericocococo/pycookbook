@@ -1,0 +1,14 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts          # lts = Long Term Support，生产推荐版本
+    container_name: jenkins
+    ports:
+      - "8080:8080"                     # Web UI 端口
+      - "50000:50000"                   # Agent 节点通信端口（分布式构建用）
+    volumes:
+      - jenkins_home:/var/jenkins_home  # 数据持久化：插件、配置、构建历史
+      - /var/run/docker.sock:/var/run/docker.sock  # 挂载宿主机 Docker socket，让 Jenkins 能执行 docker 命令
+    restart: unless-stopped             # 宿主机重启后自动拉起，手动 stop 则不重启
+
+volumes:
+  jenkins_home:                         # Docker managed volume，数据存在宿主机 Docker 数据目录

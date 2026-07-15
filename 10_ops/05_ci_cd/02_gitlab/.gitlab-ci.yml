@@ -1,0 +1,74 @@
+# .gitlab-ci.yml —— GitLab CI/CD Pipeline 配置文件
+# 放在项目根目录，push 后 GitLab 自动触发
+
+# 定义流水线阶段（按顺序执行）
+stages:
+  - install
+  - test
+  - build
+  - deploy
+
+# 全局变量（所有 job 可用）
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"   # pip 缓存目录，加速依赖安装
+
+# 全局缓存（跨 job 共享）
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+# ── install 阶段 ──────────────────────────────────────────────
+install_deps:
+  stage: install
+  image: python:3.12-slim                # 该 job 使用的 Docker 镜像
+  script:
+    - python -m venv venv                # 创建虚拟环境
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+  artifacts:                             # 产物：传递给后续 stage 的文件
+    paths:
+      - venv/
+    expire_in: 1 hour                    # 产物保留时间
+
+# ── test 阶段 ─────────────────────────────────────────────────
+test:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - source venv/bin/activate
+    - pytest tests/ -v --junitxml=report.xml
+  artifacts:
+    reports:
+      junit: report.xml                  # 测试报告，GitLab UI 中可以看到测试结果
+  coverage: '/TOTAL.*\s+(\d+%)$/'       # 用正则从输出提取覆盖率数字
+
+# ── build 阶段 ────────────────────────────────────────────────
+build_image:
+  stage: build
+  image: docker:24                       # 使用 Docker-in-Docker
+  services:
+    - docker:24-dind                     # dind = Docker in Docker，让 job 能跑 docker 命令
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    # CI_REGISTRY_IMAGE = registry.gitlab.example.com/group/project（内置变量）
+    # CI_COMMIT_SHORT_SHA = commit 的短 hash，用作镜像 tag
+  only:
+    - main                               # 只在 main 分支触发
+
+# ── deploy 阶段 ───────────────────────────────────────────────
+deploy_prod:
+  stage: deploy
+  script:
+    - echo "部署到生产环境"
+    - ssh user@server "docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA && docker compose up -d"
+  environment:
+    name: production
+    url: https://myapp.example.com
+  when: manual                           # 手动触发（不自动部署，需在 GitLab UI 点击）
+  only:
+    - main

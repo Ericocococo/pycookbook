@@ -1,0 +1,64 @@
+// Jenkinsfile —— 声明式 Pipeline 最简模板
+// 放在项目根目录，Jenkins 自动识别并执行
+
+pipeline {
+    agent any   // 在任意可用节点上执行；也可指定 agent { docker { image 'python:3.12' } }
+
+    environment {
+        // 在这里定义环境变量，所有 stage 可用
+        APP_NAME = "myapp"
+    }
+
+    stages {
+        stage('拉取代码') {
+            steps {
+                // Jenkins 默认会 checkout SCM，手动触发时也可显式写
+                checkout scm
+            }
+        }
+
+        stage('安装依赖') {
+            steps {
+                sh 'pip install -r requirements.txt'
+            }
+        }
+
+        stage('测试') {
+            steps {
+                sh 'python -m pytest tests/ -v'
+            }
+            post {
+                always {
+                    // 无论成功失败都收集测试报告
+                    junit 'test-results/*.xml'
+                }
+            }
+        }
+
+        stage('构建镜像') {
+            steps {
+                sh 'docker build -t ${APP_NAME}:${BUILD_NUMBER} .'
+                // BUILD_NUMBER 是 Jenkins 内置变量，每次构建自增
+            }
+        }
+
+        stage('部署') {
+            when {
+                branch 'main'   // 只在 main 分支执行部署
+            }
+            steps {
+                sh 'docker compose up -d'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '构建成功'
+        }
+        failure {
+            echo '构建失败，请检查日志'
+            // 可在这里加钉钉/邮件通知
+        }
+    }
+}
