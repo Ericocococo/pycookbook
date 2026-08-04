@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Monaco + Pyright LSP Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+        }
+
+        #header {
+            padding: 10px 20px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        #header h1 {
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        #status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #editor {
+            width: 100%;
+            height: calc(100vh - 41px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>Monaco + Pyright LSP</h1>
+    <span id="status" class="disconnected">未连接</span>
+</div>
+<div id="editor"></div>
+
+<!--
+  Monaco Editor 通过 CDN 加载
+  生产环境建议本地部署或用 npm 构建
+-->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    // ──────────────────────────────────────────
+    // ① 配置并加载 Monaco Editor
+    // ──────────────────────────────────────────
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        // ② 注册 Python 语言的语法高亮规则（Monarch）
+        monaco.languages.register({id: 'python'});
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+            keywords: [
+                'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+                'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+                'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+                'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return',
+                'try', 'while', 'with', 'yield',
+            ],
+            builtins: [
+                'abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir', 'enumerate',
+                'filter', 'float', 'format', 'getattr', 'hasattr', 'hash', 'hex',
+                'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len',
+                'list', 'map', 'max', 'min', 'next', 'object', 'open', 'ord',
+                'pow', 'print', 'range', 'repr', 'reversed', 'round', 'set',
+                'setattr', 'slice', 'sorted', 'str', 'sum', 'super', 'tuple',
+                'type', 'vars', 'zip',
+            ],
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+            operators: [
+                '=', '>', '<', '!', '~', '?', ':', '==', '<=', '>=', '!=',
+                '&&', '||', '++', '--', '+', '-', '*', '/', '&', '|', '^', '%',
+                '<<', '>>', '>>>', '+=', '-=', '*=', '/=',
+            ],
+            symbols: /[=><!~?:&|+\-*\/\^%]+/,
+            escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+
+            tokenizer: {
+                root: [
+                    // 装饰器
+                    [/@[a-zA-Z_]\w*/, 'tag'],
+                    // 注释
+                    [/#.*$/, 'comment'],
+                    // 多行字符串
+                    [/"""/, 'string', '@string_triple_double'],
+                    [/'''/, 'string', '@string_triple_single'],
+                    // 字符串
+                    [/f"/, 'string', '@fstring_double'],
+                    [/f'/, 'string', '@fstring_single'],
+                    [/"([^"\\]|\\.)*$/, 'string.invalid'],
+                    [/'([^'\\]|\\.)*$/, 'string.invalid'],
+                    [/"/, 'string', '@string_double'],
+                    [/'/, 'string', '@string_single'],
+                    // 数字
+                    [/\b0[xX][0-9a-fA-F]+\b/, 'number.hex'],
+                    [/\b0[oO][0-7]+\b/, 'number.octal'],
+                    [/\b0[bB][01]+\b/, 'number.binary'],
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],
+                    // 标识符和关键字
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@typeKeywords': 'type',
+                            '@default': 'identifier',
+                        }
+                    }],
+                    // 运算符
+                    [/@symbols/, {cases: {'@operators': 'operator', '@default': ''}}],
+                    // 括号
+                    [/[{}()\[\]]/, '@brackets'],
+                    // 逗号 分号
+                    [/[,;]/, 'delimiter'],
+                ],
+                string_double: [
+                    [/[^\\"]+/, 'string'],
+                    [/@escapes/, 'string.escape'],
+                    [/\\./, 'string.escape.invalid'],
+                    [/"/, 'string', '@pop'],
+                ],
+                string_single: [
+                    [/[^\\']+/, 'string'],
+                    [/@escapes/, 'string.escape'],
+                    [/\\./, 'string.escape.invalid'],
+                    [/'/, 'string', '@pop'],
+                ],
+                string_triple_double: [
+                    [/[^"]+/, 'string'],
+                    [/"""/, 'string', '@pop'],
+                    [/"/, 'string'],
+                ],
+                string_triple_single: [
+                    [/[^']+/, 'string'],
+                    [/'''/, 'string', '@pop'],
+                    [/'/, 'string'],
+                ],
+                fstring_double: [
+                    [/\{/, {token: 'delimiter.bracket', next: '@fstring_expr'}],
+                    [/[^\\"{]+/, 'string'],
+                    [/@escapes/, 'string.escape'],
+                    [/"/, 'string', '@pop'],
+                ],
+                fstring_single: [
+                    [/\{/, {token: 'delimiter.bracket', next: '@fstring_expr'}],
+                    [/[^\\'{]+/, 'string'],
+                    [/@escapes/, 'string.escape'],
+                    [/'/, 'string', '@pop'],
+                ],
+                fstring_expr: [
+                    [/\}/, {token: 'delimiter.bracket', next: '@pop'}],
+                    {include: 'root'},
+                ],
+            },
+        });
+
+        // ③ 创建编辑器实例
+        const SAMPLE_CODE = [
+            'class Student:',
+            '    def __init__(self, name: str, score: int) -> None:',
+            '        self.name = name',
+            '        self.score = score',
+            '',
+            '    def passed(self) -> bool:',
+            '        """是否及格（60 分）"""',
+            '        return self.score >= 60',
+            '',
+            '    def grade(self) -> str:',
+            '        """等级：A/B/C/D"""',
+            '        if self.score >= 90:',
+            '            return "A"',
+            '        if self.score >= 75:',
+            '            return "B"',
+            '        if self.score >= 60:',
+            '            return "C"',
+            '        return "D"',
+            '',
+            '',
+            's = Student("Alice", 85)',
+            '',
+            '# 故意写错：str 赋给 int，Pyright 会标红',
+            'bad: int = "hello"',
+            '',
+            '# 试试：',
+            '# 1. 上面这行出现红色波浪线（类型不匹配）',
+            '# 2. 输入 s. → 补全弹出 name/score/passed/grade',
+            '# 3. 鼠标悬停 passed → 显示函数签名和文档',
+            '',
+        ].join('\n');
+
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+            value: SAMPLE_CODE,
+            language: 'python',
+            theme: 'vs-dark',
+            fontSize: 14,
+            minimap: {enabled: false},
+            automaticLayout: true,
+            folding: true,
+            suggest: {showMethods: true, showFunctions: true},
+            quickSuggestions: true,
+        });
+
+        // ────────────────────────────────────────────────
+        // ④ WebSocket 连接 + LSP 初始化
+        // ────────────────────────────────────────────────
+        //
+        // 整体架构：
+        //   浏览器(Monaco) ←WebSocket→ bridge(Python) ←管道→ Pyright
+        //
+        // 连上后自动生效的功能：
+        //   - 红色波浪线（Pyright 主动推 publishDiagnostics）
+        //   - 代码补全（用户输入 . 时发 completion 请求）
+        //   - 悬浮文档（鼠标悬停时发 hover 请求）
+        //
+        const statusEl = document.getElementById('status');  // 状态指示灯 DOM 元素
+        let ws = null;           // WebSocket 连接对象（浏览器内置全局类）
+        let requestId = 0;       // 请求 id 自增计数器
+        const pendingRequests = new Map();  // 请求-响应匹配器：{id: {resolve}}
+
+        // connectLSP：连接 bridge 并完成 LSP 三步握手
+        //   1. new WebSocket → 连接 bridge
+        //   2. onopen → initialize + initialized + didOpen（三步握手）
+        //   3. onmessage → 处理响应和诊断推送
+        //   4. onclose → 断开重连（5 秒后自动重试）
+        function connectLSP() {
+            // 方案一：websockets 库（端口 3001，无路径）
+            // 方案二：FastAPI（端口 3002，路由 /lsp）
+            // ws = new WebSocket('ws://127.0.0.1:3001');       // 方案一
+            ws = new WebSocket('ws://127.0.0.1:3002/lsp'); // 方案二
+
+            // onopen：连接成功时触发（只触发一次）
+            ws.onopen = () => {
+                statusEl.textContent = 'Pyright 已连接';
+                statusEl.className = 'connected';
+
+                // LSP 三步握手：initialize → initialized → didOpen
+                // initialize 是请求（有 id，要等响应），用 sendRequest
+                sendRequest('initialize', {
+                    processId: null,
+                    capabilities: {
+                        // 告诉 Pyright 我们支持哪些功能
+                        textDocument: {
+                            completion: {completionItem: {snippetSupport: true}},  // 支持补全
+                            hover: {contentFormat: ['markdown', 'plaintext']},      // 支持悬浮文档
+                            publishDiagnostics: {relatedInformation: true},         // 支持诊断推送
+                        },
+                    },
+                    rootUri: null,
+                }).then(() => {
+                    // initialize 响应回来后，发 initialized 通知（无 id，不等响应）
+                    sendNotification('initialized', {});
+                    // 告诉 Pyright "打开了一个文件"，它才开始分析
+                    sendNotification('textDocument/didOpen', {
+                        textDocument: {
+                            uri: 'file:///workspace/main.py',  // 文件标识（假路径也行）
+                            languageId: 'python',               // 语言类型
+                            version: 1,                         // 文档版本号
+                            text: editor.getValue(),            // 编辑器当前内容
+                        },
+                    });
+                });
+            };
+
+            // onmessage：每次收到服务端消息时触发（触发多次）
+            // 两种消息：① 请求的响应（有 id） ② Pyright 主动推的通知（无 id）
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // ① 请求-响应匹配：按 id 找到对应的 resolve，兑现 Promise
+                if ('id' in data && pendingRequests.has(data.id)) {
+                    pendingRequests.get(data.id).resolve(data.result);
+                    pendingRequests.delete(data.id);
+                }
+
+                // ② 诊断推送 → 转成 Monaco markers → 编辑器画红色波浪线
+                if (data.method === 'textDocument/publishDiagnostics') {
+                    // .map() 遍历每条诊断，LSP 格式 → Monaco 格式
+                    const diagnostics = data.params.diagnostics.map(d => ({
+                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error    // 1→红
+                            : d.severity === 2 ? monaco.MarkerSeverity.Warning      // 2→黄
+                                : monaco.MarkerSeverity.Info,                       // 3→蓝
+                        startLineNumber: d.range.start.line + 1,       // LSP 从 0 开始，Monaco 从 1，+1
+                        startColumn: d.range.start.character + 1,
+                        endLineNumber: d.range.end.line + 1,
+                        endColumn: d.range.end.character + 1,
+                        message: d.message,              // 悬停波浪线显示的错误文字
+                        source: d.source || 'Pyright',   // || 是"或"，没有就用默认值
+                    }));
+                    // 设置到编辑器模型上，'pyright' 是来源标签（断开时按这个清除）
+                    monaco.editor.setModelMarkers(editor.getModel(), 'pyright', diagnostics);
+                }
+            };
+
+            // onclose：连接断开或连接失败时触发
+            // setTimeout 不是循环，是"5 秒后调一次 connectLSP"，事件链式重连
+            ws.onclose = () => {
+                statusEl.textContent = '未连接（5秒后重试）';
+                statusEl.className = 'disconnected';
+                monaco.editor.setModelMarkers(editor.getModel(), 'pyright', []);  // 清除波浪线
+                setTimeout(connectLSP, 5000);  // 5 秒后重试
+            };
+        }
+
+        // sendRequest：发 LSP 请求（有 id，返回 Promise 等响应）
+        //   用法：const result = await sendRequest('initialize', {...})
+        //   或：  sendRequest('initialize', {...}).then(result => {...})
+        //   pendingRequests 按 id 存 resolve，onmessage 里按 id 取出来兑现
+        function sendRequest(method, params) {
+            const id = ++requestId;
+            return new Promise((resolve) => {
+                pendingRequests.set(id, {resolve});  // 存 resolve，等 onmessage 来兑现
+                ws.send(JSON.stringify({jsonrpc: '2.0', id, method, params}));
+            });
+        }
+
+        // sendNotification：发 LSP 通知（无 id，不等响应）
+        //   用法：sendNotification('initialized', {})
+        //   通知类消息：initialized / didOpen / didChange
+        function sendNotification(method, params) {
+            ws.send(JSON.stringify({jsonrpc: '2.0', method, params}));
+        }
+
+        // ────────────────────────────────────────────────
+        // ⑤ 编辑器内容变更时通知 Pyright
+        // ────────────────────────────────────────────────
+        // 用户每次打字，发 didChange 通知，Pyright 重新分析并推新的诊断
+        let version = 1;
+        editor.onDidChangeModelContent(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;  // 没连上就不发
+            version++;  // 版本号 +1，Pyright 靠它判断文档新旧
+            sendNotification('textDocument/didChange', {
+                textDocument: {uri: 'file:///workspace/main.py', version},
+                contentChanges: [{text: editor.getValue()}],  // 发送编辑器全部内容
+            });
+        });
+
+        // ────────────────────────────────────────────────
+        // ⑥ 注册补全提供者（输入 . 时触发）
+        // ────────────────────────────────────────────────
+        // 功能：输入 s. 弹出 name/score/passed/grade 补全菜单
+        // 流程：Monaco 调 provideCompletionItems → 发 completion 请求 → Pyright 返回 items → 转成 suggestions
+        monaco.languages.registerCompletionItemProvider('python', {
+            triggerCharacters: ['.', ' '],  // 输入 . 或空格自动触发
+            provideCompletionItems: async (model, position) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return {suggestions: []};
+                const result = await sendRequest('textDocument/completion', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+                if (!result || !result.items) return {suggestions: []};
+                // LSP items → Monaco suggestions（字段映射）
+                return {
+                    suggestions: result.items.map(item => ({
+                        label: item.label,                                              // 显示文字
+                        kind: item.kind || monaco.languages.CompletionItemKind.Function, // 图标类型
+                        sortText: item.sortText || item.label,                          // 排序键
+                        detail: item.detail || '',                                      // 右侧灰字
+                        documentation: item.documentation,                              // 选中时文档
+                        insertText: item.insertText || item.label,                      // 选中后插入
+                    })),
+                };
+            },
+        });
+
+        // ────────────────────────────────────────────────
+        // ⑦ 注册悬浮文档提供者（鼠标悬停时触发）
+        // ────────────────────────────────────────────────
+        // 功能：鼠标悬停 passed → 弹出 "(method) Student.passed() -> bool"
+        // 流程：Monaco 调 provideHover → 发 hover 请求 → Pyright 返回文档 → 渲染悬浮框
+        monaco.languages.registerHoverProvider('python', {
+            provideHover: async (model, position) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return null;
+                const result = await sendRequest('textDocument/hover', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+                if (!result || !result.contents) return null;
+                // Pyright 返回的 contents 可能是字符串或 {kind, value} 对象
+                const value = typeof result.contents === 'string'
+                    ? result.contents
+                    : result.contents.value || '';
+                return {
+                    contents: [{value}],  // 悬浮框显示的内容（markdown 格式）
+                    // 高亮范围：给悬停的标识符加背景色
+                    range: result.range ? new monaco.Range(
+                        result.range.start.line + 1, result.range.start.character + 1,
+                        result.range.end.line + 1, result.range.end.character + 1,
+                    ) : undefined,  // undefined = JS 的 None，没有就不高亮
+                };
+            },
+        });
+
+        // 启动连接
+        connectLSP();
+    });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>前置 ④ JS 事件 + 回调 + Promise</title>
+    <!--
+      Monaco 的核心模式：注册回调函数，等事件触发时执行。
+
+      三个概念：
+        1. 事件监听（addEventListener）
+           "按钮被点击时，执行这个函数"
+           类比 Python: button.bindEvent('click', handler)
+
+        2. 回调函数（callback）
+           "我先把函数给你，你需要时再调"
+           JS 里函数是一等公民，可以当参数传
+           类比 Python: sorted(data, key=lambda x: x.score)
+
+        3. Promise + async/await
+           "发请求后不阻塞，响应回来时再继续"
+           类比 Python: await asyncio.sleep(1)
+
+      Monaco 用到的地方：
+        editor.onDidChangeModelContent(callback)  ← 事件监听
+        registerCompletionItemProvider({ provideCompletionItems: async () => {...} })  ← 回调 + async
+        sendRequest().then(result => ...)  ← Promise
+    -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+            padding: 20px;
+        }
+
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 3px;
+            margin: 4px;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        #log {
+            background: #252526;
+            padding: 12px;
+            border: 1px solid #444;
+            font-family: monospace;
+            font-size: 13px;
+            min-height: 200px;
+            margin-top: 12px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        h2 {
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        h3 {
+            margin: 16px 0 8px;
+            font-size: 14px;
+            color: #569cd6;
+        }
+    </style>
+</head>
+<body>
+
+<h2>JS 事件 + 回调 + Promise</h2>
+
+<h3>① 事件监听</h3>
+<button id="btn1">点我</button>
+<button id="btn2">改颜色</button>
+
+<h3>② Promise（模拟网络请求）</h3>
+<button id="btn3">.then 写法（老）</button>
+<button id="btn4">await 写法（新）</button>
+
+<div id="log">等待操作...\n</div>
+
+<script>
+    var logEl = document.getElementById('log');
+
+    // 日志输出函数
+    function log(msg) {
+        logEl.textContent += msg + '\n';
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ──────────────────────────────────────
+    // ① 事件监听：addEventListener
+    // ──────────────────────────────────────
+    // "点击 btn1 时，执行这个回调函数"
+    document.getElementById('btn1').addEventListener('click', function () {
+        log('[事件] btn1 被点击了');
+    });
+
+    // 回调也可以用箭头函数（ES6 写法，Monaco 里到处都是）
+    document.getElementById('btn2').addEventListener('click', () => {
+        var colors = ['#c66f6f', '#6fc66f', '#6f9ec6', '#c6c66f'];
+        var color = colors[Math.floor(Math.random() * colors.length)];
+        logEl.style.color = color;
+        log('[事件] 文字颜色改为 ' + color);
+    });
+
+    // 类比 Monaco:
+    // editor.onDidChangeModelContent(() => { ... })
+    // 和上面一模一样，只是事件源从按钮变成了编辑器
+
+    // ──────────────────────────────────────
+    // ② Promise + async/await
+    // ──────────────────────────────────────
+    //
+    // Promise 是浏览器内置的全局类，不用定义直接用。
+    // 类比 Python 的 dict / list / int 不用 import。
+    // 同类的内置全局类还有：WebSocket、Map、JSON、console 等。
+    //
+    // new Promise((resolve) => { ... })
+    //   创建一个"承诺"，resolve 是 Promise 给你的回调函数，
+    //   调 resolve(值) = "承诺兑现了，结果给你"。
+    //   外面用 .then(result => ...) 或 await 接收结果。
+    //
+    // 模拟网络请求：1 秒后返回结果
+    //
+    // 拆开写，看清每一层在做什么：
+
+    // 第 1 层：1 秒后要做的事（"兑现承诺"）
+    // resolve 是 Promise 给的回调，调它 = 把结果交给 .then() 的人
+    function onTimer(resolve) {
+        var result = {status: 200, data: '补全结果: append, sort, pop'};
+        log('[Promise] 1 秒到了，resolve 交出结果');
+        resolve(result);
+    }
+
+    // 第 2 层：Promise 的执行器（拿到 resolve，启动定时器）
+    // Promise 创建时立刻调这个函数，把 resolve 传进来
+    function executor(resolve) {
+        log('[Promise] 启动 1 秒定时器...');
+        setTimeout(function () { onTimer(resolve); }, 1000);
+    }
+
+    // 第 3 层：fakeFetch 本身，返回一个 Promise
+    function fakeFetch(url) {
+        log('[Promise] 发送请求: ' + url);
+        return new Promise(executor);
+    }
+
+    // 合在一起就是原来的嵌套写法：
+    // function fakeFetch(url) {
+    //     return new Promise(function (resolve) {      ← executor
+    //         setTimeout(function () {                  ← 定时器回调
+    //             resolve({status: 200, data: '...'});  ← onTimer
+    //         }, 1000);
+    //     });
+    // }
+    //
+    // 类比 Python:
+    // async def fake_fetch(url):
+    //     await asyncio.sleep(1)        ← setTimeout + resolve
+    //     return {"status": 200, ...}   ← resolve(result)
+
+    // .then() 用法：
+    //   promise.then(function(result) { ... })
+    //   意思是："Promise 兑现时（resolve 被调时），用 result 执行这个函数"
+    //   result 就是 resolve(值) 里的那个值
+    //
+    // 完整流程：
+    //   fakeFetch('/api/completion')        ← 返回 Promise（还没兑现）
+    //     .then(function(result) { ... })   ← 注册回调："兑现了就调我"
+    //
+    //   ... 1 秒后 resolve({status:200, data:'...'}) 被调 ...
+    //
+    //   → .then 里的 function(result) 执行，result = {status:200, data:'...'}
+    //
+    // 类比 Python:
+    //   result = await fake_fetch('/api/completion')
+    //   await 之后的代码 ≈ .then() 里的代码
+    //
+    // ── 老写法：.then()（btn3） ──
+    document.getElementById('btn3').addEventListener('click', function () {
+        log('[.then] 发请求...');
+        fakeFetch('/api/completion')
+            .then(function (result) {
+                log('[.then] 收到响应: ' + JSON.stringify(result));
+            });
+        log('[.then] 请求已发出（不阻塞，这行先执行）');
+    });
+
+    // ── 新写法：async/await（btn4） ──
+    // async 标记函数里可以用 await
+    // await = 等 Promise 兑现，拿到结果后继续往下走
+    document.getElementById('btn4').addEventListener('click', async function () {
+        log('[await] 发请求...');
+        var result = await fakeFetch('/api/completion');
+        // ↑ 等 1 秒，resolve 后才执行下面这行
+        log('[await] 收到响应: ' + JSON.stringify(result));
+    });
+
+    // 两个按钮都点一下，对比控制台日志顺序：
+    //   .then 版：发请求 → "不阻塞，先执行" → 1秒后收到响应（.then 里的代码最后才跑）
+    //   await 版：发请求 → 1秒后收到响应（按代码顺序，更直觉）
+    //
+    // Monaco 里两种都有：
+    //   sendRequest('initialize', {...}).then(() => { ... })     ← 老写法
+    //   const result = await sendRequest('textDocument/completion', params)  ← 新写法
+
+    log('页面加载完成，点按钮试试');
+</script>
+
+</body>
+</html>

@@ -5,9 +5,9 @@
 | [README.md](README.md) | 安装、重装、升级、常用命令、镜像加速、导入导出、docker cp、私有 Registry、日志驱动、资源限制、网络模式、多平台构建、Context、安全加固、常见问题排查、commit、diff、events、健康检查+重启策略 |
 | [Dockerfile.md](Dockerfile.md) | 全指令说明、层缓存最佳实践、多阶段构建、Python 典型模板、.dockerignore |
 
-## 安装
+## 1. 安装
 
-### Windows
+### 1.1 Windows
 
 ```powershell
 # 方式一：Docker Desktop（推荐，带图形界面）
@@ -26,7 +26,7 @@ docker version
 docker run hello-world
 ```
 
-### Linux
+### 1.2 Linux
 
 **第一步：查看操作系统版本**
 
@@ -47,7 +47,7 @@ VERSION="22.04.3 LTS (Jammy Jellyfish)"
 
 ---
 
-#### Ubuntu / Debian
+#### 1.2.1 Ubuntu / Debian
 
 ```bash
 # 1. 卸载旧版本（如有）
@@ -59,27 +59,47 @@ sudo apt install -y ca-certificates curl gnupg
 
 # 3. 添加 Docker 官方 GPG Key
 sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+#    国内服务器用清华源（download.docker.com 常被封锁）：
+curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu/gpg | \
     sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+#    能访问外网时用官方地址：
+#    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+#        sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 # 4. 添加 Docker APT 源
+#    国内服务器用清华源（download.docker.com 常被封锁）：
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
+  https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list
+#    能访问外网时用官方源：
+#    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+#      https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
+#      sudo tee /etc/apt/sources.list.d/docker.list
 
 # 5. 安装
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io \
     docker-buildx-plugin docker-compose-plugin
 
-# ── 或者用官方一键脚本（以上步骤的简化版）──
-curl -fsSL https://get.docker.com | sh
+# ── 或者用一键脚本（国内用阿里云加速版）──
+curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+# 能访问外网时用官方版：curl -fsSL https://get.docker.com | sh
 ```
 
 ---
 
-#### CentOS / RHEL / Rocky Linux
+#### 1.2.2 CentOS / RHEL / Rocky Linux
+
+> **CentOS 7 已于 2024-06-30 EOL**，官方 mirrorlist.centos.org 停服。
+> 若 yum 报 "Could not resolve host: mirrorlist.centos.org"，先修复基础源：
+> ```bash
+> sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo
+> sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=https://vault.centos.org|g' \
+>     /etc/yum.repos.d/CentOS-*.repo
+> sudo yum makecache
+> ```
 
 ```bash
 # 1. 卸载旧版本（如有）
@@ -90,8 +110,15 @@ sudo yum remove docker docker-client docker-client-latest \
 sudo yum install -y yum-utils
 
 # 3. 添加 Docker YUM 源
+#    国内服务器用清华源（download.docker.com 常被封锁）：
 sudo yum-config-manager --add-repo \
-    https://download.docker.com/linux/centos/docker-ce.repo
+    https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/centos/docker-ce.repo
+#    或用阿里云源：
+#    sudo yum-config-manager --add-repo \
+#        https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+#    能访问外网时用官方源：
+#    sudo yum-config-manager --add-repo \
+#        https://download.docker.com/linux/centos/docker-ce.repo
 
 # 4. 安装
 sudo yum install -y docker-ce docker-ce-cli containerd.io \
@@ -107,20 +134,34 @@ sudo yum install -y docker-ce docker-ce-cli containerd.io \
 **安装后通用步骤（Ubuntu / CentOS 都要做）：**
 
 ```bash
-# 启动并设置开机自启
+# 1. 启动并设置开机自启
 sudo systemctl enable docker
 sudo systemctl start docker
 
-# 把当前用户加入 docker 组（避免每次 sudo）
+# 2. 把当前用户加入 docker 组（避免每次 sudo）
 sudo usermod -aG docker $USER
 newgrp docker        # 立即生效；或者重新登录 SSH
 
-# 验证
+# 3. 配置镜像加速（国内服务器必备，否则拉镜像会超时）
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<'DAEMON_EOF'
+{
+  "registry-mirrors": [
+    "https://mirror.baidubce.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.mirrors.ustc.edu.cn"
+  ]
+}
+DAEMON_EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+# 4. 验证
 docker version
 docker run hello-world
 ```
 
-### 安装 Docker Compose（Linux 独立安装）
+### 1.3 安装 Docker Compose（Linux 独立安装）
 
 ```bash
 # Docker Desktop（Win/Mac）已内置 compose，Linux 需单独装
@@ -132,9 +173,9 @@ docker compose version
 
 ---
 
-## 重新安装 / 卸载
+## 2. 重新安装 / 卸载
 
-### Windows
+### 2.1 Windows
 
 ```powershell
 # 1. 卸载 Docker Desktop
@@ -149,9 +190,9 @@ Remove-Item -Recurse -Force "$env:PROGRAMDATA\Docker"
 winget install Docker.DockerDesktop
 ```
 
-### Linux
+### 2.2 Linux
 
-#### Ubuntu / Debian
+#### 2.2.1 Ubuntu / Debian
 
 ```bash
 # 1. 停止服务
@@ -167,15 +208,16 @@ sudo rm -rf /var/lib/containerd
 sudo rm -f /etc/apt/sources.list.d/docker.list
 sudo rm -f /etc/apt/keyrings/docker.gpg
 
-# 4. 重新安装
-curl -fsSL https://get.docker.com | sh
+# 4. 重新安装（一键脚本会自动重新添加 APT 源）
+curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+# 能访问外网时：curl -fsSL https://get.docker.com | sh
 
 # 5. 把用户加回 docker 组
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-#### CentOS / RHEL / Rocky Linux
+#### 2.2.2 CentOS / RHEL / Rocky Linux
 
 ```bash
 # 1. 停止服务
@@ -189,16 +231,20 @@ sudo yum remove -y docker-ce docker-ce-cli containerd.io \
 sudo rm -rf /var/lib/docker
 sudo rm -rf /var/lib/containerd
 
-# 4. 重新安装
+# 4. 重新添加 YUM 源（若原来用的是官方源，借此换成清华源）
+sudo yum-config-manager --add-repo \
+    https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/centos/docker-ce.repo
+
+# 5. 重新安装
 sudo yum install -y docker-ce docker-ce-cli containerd.io \
     docker-buildx-plugin docker-compose-plugin
 
-# 5. 启动并加用户组
+# 6. 启动并加用户组
 sudo systemctl enable docker && sudo systemctl start docker
 sudo usermod -aG docker $USER && newgrp docker
 ```
 
-### 只重置数据、不重装
+### 2.3 只重置数据、不重装
 
 ```bash
 # 删除所有容器、镜像、卷、网络（慎用，不可恢复）
@@ -221,7 +267,7 @@ sudo systemctl restart docker          # Linux
 
 ---
 
-## 镜像
+## 3. 镜像
 
 ```bash
 docker images                            # 列出本地所有镜像
@@ -233,7 +279,7 @@ docker image prune                       # 清理悬空镜像（没有标签、�
 docker image prune -a                    # 清理所有未被容器使用的镜像
 ```
 
-## 容器生命周期
+## 4. 容器生命周期
 
 ```bash
 # 运行
@@ -253,7 +299,7 @@ docker rm -f web                                 # 强制删除（运行中也�
 docker container prune                           # 删除所有已停止的容器
 ```
 
-## 查看状态
+## 5. 查看状态
 
 ```bash
 docker ps                                # 列出运行中的容器
@@ -271,7 +317,7 @@ docker stats --no-stream                 # 只看当前快照，不持续刷新
 docker top web                           # 查看容器内进程
 ```
 
-## 进入容器
+## 6. 进入容器
 
 ```bash
 docker exec -it web bash                 # 进入运行中的容器，开启交互式 bash
@@ -280,7 +326,7 @@ docker exec web cat /etc/hosts           # 在容器内执行单条命令，不�
 docker exec -e FOO=bar web env           # 临时传入环境变量执行命令
 ```
 
-## 数据卷
+## 7. 数据卷
 
 ```bash
 docker volume ls                         # 列出所有卷
@@ -295,7 +341,7 @@ docker run -v /host/path:/container/path nginx   # 绑定挂载（宿主机目�
 docker run --mount type=tmpfs,target=/tmp nginx  # tmpfs（内存，容器停止即消失）
 ```
 
-## 网络
+## 8. 网络
 
 ```bash
 docker network ls                        # 列出所有网络
@@ -308,7 +354,7 @@ docker run --network mynet nginx         # 启动时指定网络
 # 例：web 容器可以 curl http://db:5432 访问同网络的 db 容器
 ```
 
-## 清理
+## 9. 清理
 
 ```bash
 docker system prune                      # 清理停止的容器 + 悬空镜像 + 无用网络
@@ -317,7 +363,7 @@ docker system prune -a --volumes         # 连卷一起清理（危险，会丢�
 docker system df                         # 查看 Docker 磁盘占用明细
 ```
 
-## run 参数速查
+## 10. run 参数速查
 
 ```text
 参数                     含义
@@ -337,7 +383,7 @@ docker system df                         # 查看 Docker 磁盘占用明细
 -u 1000:1000             指定运行用户（uid:gid）
 ```
 
-## Dockerfile 速查
+## 11. Dockerfile 速查
 
 ```dockerfile
 FROM python:3.12-slim          # 基础镜像，slim = 精简版，体积小
@@ -352,21 +398,23 @@ CMD ["python", "app.py"]       # 容器启动命令（ENTRYPOINT 固定命令，
 
 ---
 
-## 镜像加速（国内必备）
+## 12. 镜像加速（国内必备）
 
-Docker Hub 在国内访问慢，配置镜像加速器可显著提速。
+> 安装时通用步骤已包含此配置（见 `## 1` 步骤3）。此章节用于安装后单独调整或更换加速器。
 
-### Linux
+Docker Hub 在国内访问慢或被封锁，配置镜像加速器可解决。
+
+### 12.1 Linux
 
 ```bash
 # 编辑（没有则新建）Docker daemon 配置文件
 sudo mkdir -p /etc/docker
-sudo tee /etc/docker/daemon.json <<EOF
+sudo tee /etc/docker/daemon.json <<'EOF'
 {
   "registry-mirrors": [
-    "https://mirror.ccs.tencentyun.com",
-    "https://docker.mirrors.ustc.edu.cn",
-    "https://hub-mirror.c.163.com"
+    "https://mirror.baidubce.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.mirrors.ustc.edu.cn"
   ]
 }
 EOF
@@ -377,35 +425,38 @@ sudo systemctl restart docker
 
 # 验证配置是否生效
 docker info | grep -A 5 "Registry Mirrors"
+docker run hello-world
 ```
 
-### Windows（Docker Desktop）
+### 12.2 Windows（Docker Desktop）
 
 ```text
 Docker Desktop → Settings → Docker Engine → 编辑 JSON，加入：
 
 {
   "registry-mirrors": [
-    "https://mirror.ccs.tencentyun.com",
-    "https://docker.mirrors.ustc.edu.cn"
+    "https://mirror.baidubce.com",
+    "https://docker.m.daocloud.io"
   ]
 }
 
 → Apply & Restart
 ```
 
-### 常用镜像加速地址
+### 12.3 常用镜像加速地址
 
 ```text
-腾讯云（推荐）    https://mirror.ccs.tencentyun.com
-中科大           https://docker.mirrors.ustc.edu.cn
-网易             https://hub-mirror.c.163.com
-阿里云           https://[你的ID].mirror.aliyuncs.com   （需登录阿里云控制台获取专属地址）
+百度云           https://mirror.baidubce.com              （2026 验证有效）
+DaoCloud        https://docker.m.daocloud.io             （2026 验证有效）
+中科大           https://docker.mirrors.ustc.edu.cn       （可用）
+阿里云           https://[你的ID].mirror.aliyuncs.com     （需登录阿里云控制台获取专属地址）
 ```
+
+> 注：腾讯云（`mirror.ccs.tencentyun.com`）和网易（`hub-mirror.c.163.com`）等加速器已于 2024 年后陆续停服，不要使用。
 
 ---
 
-## 镜像导入导出（离线迁移）
+## 13. 镜像导入导出（离线迁移）
 
 适用场景：内网服务器无法联网，把镜像打包后通过 U 盘 / scp 传输。
 
@@ -441,7 +492,7 @@ docker import  → 对应 export 的导入
 
 ---
 
-## docker cp（容器 ↔ 宿主机 拷贝文件）
+## 14. docker cp（容器 ↔ 宿主机 拷贝文件）
 
 ```bash
 # 宿主机 → 容器
@@ -458,9 +509,9 @@ docker cp stopped_container:/etc/config.yml .
 
 ---
 
-## 私有 Registry
+## 15. 私有 Registry
 
-### 使用 GitLab / Harbor Registry
+### 15.1 使用 GitLab / Harbor Registry
 
 ```bash
 # 登录私有 Registry
@@ -480,7 +531,7 @@ docker pull registry.example.com/mygroup/myapp:1.0
 docker logout registry.example.com
 ```
 
-### 搭建本地 Registry（轻量，无 UI）
+### 15.2 搭建本地 Registry（轻量，无 UI）
 
 ```bash
 # 启动官方 registry 容器
@@ -504,11 +555,11 @@ curl http://localhost:5000/v2/myapp/tags/list
 
 ---
 
-## 日志驱动
+## 16. 日志驱动
 
 Docker 默认用 `json-file` 驱动，日志文件不限大小会撑满磁盘，**生产环境必须配置轮转**。
 
-### 全局配置（所有容器生效）
+### 16.1 全局配置（所有容器生效）
 
 ```bash
 # /etc/docker/daemon.json
@@ -524,7 +575,7 @@ EOF
 sudo systemctl restart docker
 ```
 
-### 单个容器配置
+### 16.2 单个容器配置
 
 ```bash
 docker run -d \
@@ -534,7 +585,7 @@ docker run -d \
   --name web nginx
 ```
 
-### 常用日志驱动
+### 16.3 常用日志驱动
 
 ```text
 驱动          说明
@@ -549,9 +600,9 @@ awslogs       发送到 AWS CloudWatch
 
 ---
 
-## 资源限制
+## 17. 资源限制
 
-### 运行时限制
+### 17.1 运行时限制
 
 ```bash
 docker run -d \
@@ -568,14 +619,14 @@ docker stats web
 docker stats --no-stream   # 只看当前快照
 ```
 
-### 查看容器资源限制
+### 17.2 查看容器资源限制
 
 ```bash
 docker inspect web | grep -A 20 '"HostConfig"'   # 查看完整资源配置
 docker inspect web --format '{{.HostConfig.Memory}}'   # 只看内存限制（单位字节）
 ```
 
-### OOM（内存不足）排查
+### 17.3 OOM（内存不足）排查
 
 ```bash
 # 容器被 OOM Kill 后会自动退出，状态码是 137
@@ -591,9 +642,9 @@ docker run --memory 512m --memory-swap 512m ...   # 完全禁用 swap
 
 ---
 
-## 升级 Docker
+## 18. 升级 Docker
 
-### Linux（Ubuntu / Debian）
+### 18.1 Linux（Ubuntu / Debian）
 
 ```bash
 # 查看当前版本
@@ -611,7 +662,9 @@ sudo apt upgrade -y docker-ce docker-ce-cli containerd.io \
 sudo apt install -y docker-ce=<VERSION_STRING>
 ```
 
-### Linux（CentOS / Rocky）
+### 18.2 Linux（CentOS / Rocky）
+
+> 若当前 YUM 源仍指向 download.docker.com，请先按 `## 1` 换成清华源再升级。
 
 ```bash
 # 查看可用版本
@@ -625,7 +678,7 @@ sudo yum update -y docker-ce docker-ce-cli containerd.io \
 sudo yum install -y docker-ce-<VERSION>
 ```
 
-### Windows
+### 18.3 Windows
 
 ```powershell
 # 升级 Docker Desktop
@@ -634,13 +687,13 @@ winget upgrade Docker.DockerDesktop
 
 ---
 
-## 网络模式详解
+## 19. 网络模式详解
 
 ```bash
 docker network ls    # 默认有三个网络：bridge / host / none
 ```
 
-### bridge（默认）
+### 19.1 bridge（默认）
 
 ```bash
 # 容器连接到虚拟网桥 docker0，通过 NAT 访问外网
@@ -655,7 +708,7 @@ docker run -d --network mybridge --name web nginx  # 指定自定义桥接网络
 docker network create mybridge
 ```
 
-### host
+### 19.2 host
 
 ```bash
 # 容器直接使用宿主机网络栈，没有网络隔离
@@ -664,7 +717,7 @@ docker run -d --network host nginx    # nginx 监听宿主机的 80 端口
 # 注意：host 模式在 Docker Desktop（Win/Mac）上不生效，仅 Linux 有效
 ```
 
-### none
+### 19.3 none
 
 ```bash
 # 容器没有网络接口，完全隔离
@@ -672,7 +725,7 @@ docker run -d --network host nginx    # nginx 监听宿主机的 80 端口
 docker run --rm --network none alpine ip addr    # 只有 lo 回环接口
 ```
 
-### overlay（Swarm / 跨主机）
+### 19.4 overlay（Swarm / 跨主机）
 
 ```bash
 # 跨多台宿主机的容器互联，需要 Swarm 模式
@@ -680,7 +733,7 @@ docker run --rm --network none alpine ip addr    # 只有 lo 回环接口
 docker network create -d overlay myoverlay
 ```
 
-### 网络模式对比
+### 19.5 网络模式对比
 
 ```text
 模式       隔离性    性能    适用场景
@@ -693,7 +746,7 @@ overlay    有        中      Swarm 集群跨主机通信
 
 ---
 
-## 多平台构建（buildx）
+## 20. 多平台构建（buildx）
 
 适用场景：M 芯片 Mac 本地开发，部署到 x86 Linux 服务器；或同时发布 amd64 + arm64 镜像。
 
@@ -723,7 +776,7 @@ docker buildx imagetools inspect registry.example.com/myapp:1.0
 
 ---
 
-## Docker Context（远程管理多台主机）
+## 21. Docker Context（远程管理多台主机）
 
 不用 SSH 登录远程服务器，直接在本地用 docker 命令管理远程 Docker。
 
@@ -751,9 +804,9 @@ docker --context remote-server compose up -d
 
 ---
 
-## 安全加固
+## 22. 安全加固
 
-### 非 root 用户运行
+### 22.1 非 root 用户运行
 
 ```bash
 # 运行时指定用户（uid:gid）
@@ -764,7 +817,7 @@ RUN useradd -m -u 1000 appuser
 USER appuser
 ```
 
-### 只读文件系统
+### 22.2 只读文件系统
 
 ```bash
 # --read-only：容器根文件系统只读，防止容器内写入恶意文件
@@ -774,7 +827,7 @@ docker run --read-only \
   nginx
 ```
 
-### 禁止特权模式
+### 22.3 禁止特权模式
 
 ```bash
 # 不要用 --privileged（赋予容器几乎等同于 root 的宿主机权限）
@@ -784,7 +837,7 @@ docker run --cap-drop ALL \           # 先去掉所有 capability
   nginx
 ```
 
-### 常用安全参数
+### 22.4 常用安全参数
 
 ```text
 参数                          含义
@@ -800,9 +853,9 @@ docker run --cap-drop ALL \           # 先去掉所有 capability
 
 ---
 
-## 常见问题排查
+## 23. 常见问题排查
 
-### 容器启动失败
+### 23.1 容器启动失败
 
 ```bash
 # 查看退出状态和原因
@@ -818,7 +871,7 @@ docker inspect <容器名> | grep -A5 '"State"'   # 查看详细退出信息
 # 143 优雅终止 SIGTERM（128 + 15）
 ```
 
-### 端口冲突
+### 23.2 端口冲突
 
 ```bash
 # 报错：Bind for 0.0.0.0:8080 failed: port is already allocated
@@ -830,7 +883,7 @@ netstat -ano | findstr 8080     # Windows
 docker ps --format "table {{.Names}}\t{{.Ports}}" | grep 8080
 ```
 
-### 网络不通
+### 23.3 网络不通
 
 ```bash
 # 容器内测试网络
@@ -845,7 +898,7 @@ docker inspect web --format '{{json .NetworkSettings.Networks}}'
 docker network connect mybridge web
 ```
 
-### 磁盘空间不足
+### 23.4 磁盘空间不足
 
 ```bash
 # 查看 Docker 磁盘占用
@@ -862,7 +915,7 @@ docker system prune -a       # 清理所有未使用资源（不含卷）
 docker system prune -a --volumes   # 连卷一起清（危险）
 ```
 
-### 权限问题
+### 23.5 权限问题
 
 ```bash
 # 报错：Got permission denied while trying to connect to the Docker daemon socket
@@ -880,7 +933,7 @@ docker run -u $(id -u):$(id -g) ...      # 用宿主机当前用户运行容器
 
 ---
 
-## docker commit（从容器创建镜像）
+## 24. docker commit（从容器创建镜像）
 
 适用场景：在容器内手动调试安装了某些东西，想把当前状态保存为镜像。
 **不推荐生产使用**（无法追溯变更，应用 Dockerfile 替代）。
@@ -903,7 +956,7 @@ docker commit -m "安装了 curl 和 vim" -a "me" <容器ID> myubuntu:with-tools
 
 ---
 
-## docker diff（查看容器文件变更）
+## 25. docker diff（查看容器文件变更）
 
 查看容器相对基础镜像的文件系统变更，排查容器内改了哪些文件。
 
@@ -924,7 +977,7 @@ docker diff <容器名>
 
 ---
 
-## docker events（实时监听 Docker 事件）
+## 26. docker events（实时监听 Docker 事件）
 
 监听 Docker daemon 产生的事件流，适合调试、监控、自动化触发。
 
@@ -955,9 +1008,9 @@ docker events --since 1h --until 0s
 
 ---
 
-## 健康检查 + 重启策略
+## 27. 健康检查 + 重启策略
 
-### HEALTHCHECK（Dockerfile 里定义）
+### 27.1 HEALTHCHECK（Dockerfile 里定义）
 
 ```dockerfile
 # 每 30s 检查一次，超时 5s，连续失败 3 次才标记为 unhealthy
@@ -974,7 +1027,7 @@ docker inspect web --format '{{.State.Health.Status}}'   # 只看健康状态
 docker inspect web --format '{{json .State.Health}}'     # 看完整健康检查历史
 ```
 
-### 重启策略（--restart）
+### 27.2 重启策略（--restart）
 
 ```bash
 docker run --restart unless-stopped nginx    # 常用：除非手动停止，否则一直重启

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>② 加 Python 语法高亮</title>
+    <!--
+      在 01 基础上，用 Monarch 语法规则给 Python 代码上色。
+
+      Monarch 是 Monaco 内置的语法高亮引擎，用 JSON 描述词法规则：
+        - keywords   → 关键字（蓝色）：if / for / def / class ...
+        - builtins   → 内置函数（黄色）：print / len / range ...
+        - tokenizer  → 状态机，逐字符匹配，分配 token 类型
+        - 每个 token 类型对应一种颜色（由 theme 决定）
+
+      vs-dark 主题的 token → 颜色映射（本文件用到的）：
+        token 类型         颜色          对应代码里的什么
+        ─────────────     ──────        ────────────────
+        keyword           #569cd6 蓝    if / def / class / return
+        predefined        #dcdcaa 黄    print / len / range
+        type              #4ec9b0 青    int / str / bool
+        string            #ce9178 橙    "hello" / '''docstring'''
+        string.escape     #d7ba7d 金    \n / \t
+        string.invalid    #f44747 红    未闭合的字符串
+        comment           #6a9955 绿    # 注释
+        number            #b5cea8 浅绿  42 / 3.14
+        tag               #569cd6 蓝    @decorator
+        identifier        #9cdcfe 浅蓝  普通变量名
+        delimiter         #d4d4d4 灰    , ;
+        @brackets         #ffd700 金    { } [ ] ( )
+        默认(空)           #d4d4d4 灰    其他
+
+      新增内容（相比 01）：
+        ★ monaco.languages.register() —— 注册语言
+        ★ monaco.languages.setMonarchTokensProvider() —— 设置高亮规则
+    -->
+    <style>
+        body {
+            margin: 0;
+            background: #1e1e1e;
+        }
+
+        #editor {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+<div id="editor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        // ★ 注册 python 语言
+        monaco.languages.register({id: 'python'});
+
+        // ★ 设置 Monarch 语法高亮规则
+        //
+        // 这段代码实现 Python 语法高亮，分两步流水线：
+        //
+        //   第 1 步（你写的）：状态机扫描代码，给每段文字标记 token 类型
+        //     "print" → predefined    "def" → keyword    "#注释" → comment
+        //     "hello" → string        "42"  → number     "myVar" → identifier
+        //
+        //   第 2 步（Monaco 自动做）：主题查表，token 类型 → 颜色 → 生成 <span>
+        //     predefined → <span style="color:#dcdcaa">print</span>  黄色
+        //     keyword    → <span style="color:#569cd6">def</span>    蓝色
+        //     comment    → <span style="color:#6a9955">#注释</span>  绿色
+        //     string     → <span style="color:#ce9178">hello</span>  橙色
+        //
+        //   浏览器渲染 <span> 的 CSS 颜色 → 屏幕上看到语法高亮
+        //
+        // 你只负责第 1 步（分类），第 2 步 Monaco 根据 theme:'vs-dark' 自动上色。
+        //
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+
+            // 关键字列表 → 匹配后标记为 'keyword' → 主题渲染为蓝色
+            keywords: [
+                'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+                'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+                'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+                'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return',
+                'try', 'while', 'with', 'yield',
+            ],
+
+            // 内置函数 → 标记为 'predefined' → 主题渲染为黄色
+            builtins: [
+                'abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir',
+                'enumerate', 'filter', 'float', 'format', 'getattr', 'hasattr',
+                'hash', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass',
+                'iter', 'len', 'list', 'map', 'max', 'min', 'next', 'object',
+                'open', 'ord', 'pow', 'print', 'range', 'repr', 'reversed',
+                'round', 'set', 'setattr', 'slice', 'sorted', 'str', 'sum',
+                'super', 'tuple', 'type', 'vars', 'zip',
+            ],
+
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+
+            // ──────────────────────────────────────────────────
+            // tokenizer 状态机
+            // ──────────────────────────────────────────────────
+            //
+            // ── 先看最简版（只有 2 条规则）──
+            //
+            // 假设只需要高亮注释：
+            //   tokenizer: {
+            //     root: [
+            //       [/#.*$/, 'comment'],   // 遇到 # 到行尾 → 标绿
+            //     ]
+            //   }
+            //
+            // 用 x = 1 # hi 走一遍：
+            //   x = 1   → root 里没匹配到 → 默认灰色
+            //   # hi    → 匹配 /#.*$/ → 标记为 comment → 绿色
+            // 只有一个 root 状态，不需要跳转，这就是最简的状态机。
+            //
+            //
+            // ── 加一个状态：处理字符串 ──
+            //
+            // 为什么需要第二个状态？看这行代码：
+            //   x = "hello # world"
+            //
+            // 如果只有 root，# world 会被当成注释（绿色）！
+            // 但它在引号里面，应该是字符串（橙色）。
+            //
+            // 解决：遇到 " 跳到 string 状态，string 状态里 # 不是注释：
+            //   tokenizer: {
+            //     root: [
+            //       [/#.*$/, 'comment'],             // # 注释 → 绿色
+            //       [/"/, 'string', '@str'],          // 遇到 " → 橙色，跳到 str 状态
+            //     ],
+            //     str: [
+            //       [/[^\\"]+/, 'string'],            // 非引号内容 → 橙色
+            //       [/"/, 'string', '@pop'],           // 再遇到 " → 字符串结束，回 root
+            //     ]
+            //   }
+            //
+            // 用 x = "hello # world" 走一遍：
+            //   字符          状态    匹配           标记      状态变化
+            //   x = 　　　　  root    （无匹配）      灰色      留 root
+            //   "             root    /"/             string    → str
+            //   hello # world str     /[^\\"]+/       string    留 str（# 不会被当注释！）
+            //   "             str     /"/             string    @pop → 回 root
+            //
+            // 这就是状态机的核心价值：同一个字符（#），在 root 里是注释，在 str 里是普通文字。
+            //
+            //
+            // ── 规则格式总结 ──
+            //
+            //   [/正则/,  'token类型']                → 匹配并标记，留在当前状态
+            //   [/正则/,  'token类型', '@新状态']      → 匹配并标记，跳转到新状态
+            //   [/正则/,  'token类型', '@pop']         → 匹配并标记，返回上一个状态
+            //
+            // 下面是完整版，状态更多但原理一样：
+            //   root → string_double（双引号字符串）
+            //   root → string_single（单引号字符串）
+            //   root → triple_double（三引号字符串）
+            //   root → fstring → fstring_expr（f-string 里的 {} 表达式）
+            //
+            tokenizer: {
+
+                // ── 正则从简单到复杂 ──
+                //
+                // JS 正则写在 /.../ 里，类比 Python 的 re.compile(r'...')
+                //
+                // 1. 最简单：匹配固定字符（字母、符号直接写）
+                //   /"""/           匹配三个双引号
+                //   /f"/            匹配 f 紧跟双引号
+                //   /"/             匹配一个双引号
+                //   /#/             匹配 # 号
+                //   /@/             匹配 @ 字符本身（装饰器开头）
+                //
+                // 2. 字符类 []：匹配其中任意一个
+                //   /[,;]/          匹配逗号或分号
+                //   /[abc]/         匹配 a 或 b 或 c
+                //   /[a-z]/         匹配 a 到 z 的任意小写字母
+                //   /[a-zA-Z]/      匹配任意字母
+                //   /[a-zA-Z_]/     匹配字母或下划线
+                //   /[{}()\[\]]/    匹配括号（\[ \] 要转义，因为 [] 是正则语法）
+                //
+                // 3. 取反 [^]：匹配"除了这些以外"的字符
+                //   /[^"]/          匹配非双引号的字符
+                //   /[^\\']/        匹配非单引号且非反斜杠的字符
+                //   /[^\\"{]/       匹配非反斜杠、非双引号、非花括号的字符
+                //
+                // 4. 量词：控制重复次数
+                //   /a/             匹配 1 个 a
+                //   /a+/            匹配 1 个或多个 a：a  aa  aaa
+                //   /a*/            匹配 0 个或多个 a：(空)  a  aa  aaa
+                //   /a?/            匹配 0 个或 1 个 a：(空)  a
+                //
+                // 5. 分组和或
+                //   (x|y)           匹配 x 或 y
+                //   ([^"\\]|\\.)*   (非引号非反斜杠 | 转义字符) 重复0次以上
+                //
+                // 6. 常用简写
+                //   .               任意一个字符（换行除外）
+                //   .*              任意字符 0 个或多个（贪婪，尽量多吃）
+                //   \d              数字（等价 [0-9]）
+                //   \w              字母/数字/下划线（等价 [a-zA-Z0-9_]）
+                //   \\.             反斜杠+任意字符（匹配转义：\n \t \"）
+                //
+                // 6. 位置锚点
+                //   $               行尾
+                //   \b              单词边界（防止 abc123 里的 123 被当成数字）
+                //
+                // 7. 组合起来读
+                //   /#.*$/          # + 任意字符0个以上 + 行尾 → 整行注释
+                //   /[^\\"]+/       非引号非反斜杠，1个以上 → 字符串里的普通文字
+                //   /\b\d+\b/       单词边界 + 数字1个以上 + 单词边界 → 整数
+                //   /[a-zA-Z_]\w*/  字母或下划线开头 + 字母数字下划线0个以上 → 标识符
+                //   /@[a-zA-Z_]\w*/ @ + 标识符 → 装饰器
+
+                // ── root 状态：代码的"正常区域" ──
+                root: [
+                    // /@[a-zA-Z_]\w*/  →  @ 开头 + 字母/下划线 + 任意字母数字下划线
+                    // 匹配：@staticmethod  @property  @app.route
+                    [/@[a-zA-Z_]\w*/, 'tag'],                      // → #569cd6 蓝
+
+                    // /#.*$/  →  # 开头 + 任意字符到行尾
+                    // 匹配：# 这是注释
+                    [/#.*$/, 'comment'],                             // → #6a9955 绿
+
+                    // /"""/  →  三个双引号
+                    [/"""/, 'string', '@triple_double'],              // → #ce9178 橙，跳转 triple_double
+
+                    // /'''/  →  三个单引号
+                    [/'''/, 'string', '@triple_single'],             // → #ce9178 橙，跳转 triple_single
+
+                    // /f"/  →  f 紧跟双引号
+                    [/f"/, 'string', '@fstring'],                    // → #ce9178 橙，跳转 fstring
+
+                    // /"([^"\\]|\\.)*$/  →  " 开头 + (非引号非反斜杠 | 转义字符)重复 + 行尾
+                    // 意思是：双引号开始，到行尾都没有闭合的引号 → 非法字符串
+                    // 匹配：x = "hello        （没写结尾的 "）
+                    [/"([^"\\]|\\.)*$/, 'string.invalid'],          // → #f44747 红
+
+                    // /"/  →  单个双引号（正常字符串开始）
+                    [/"/, 'string', '@string_double'],               // → #ce9178 橙，跳转 string_double
+
+                    // /'/  →  单个单引号
+                    [/'/, 'string', '@string_single'],               // → #ce9178 橙，跳转 string_single
+
+                    // /\b\d+(\.\d+)?([eE][+-]?\d+)?\b/
+                    //  \b      单词边界（防止匹配 abc123 里的 123）
+                    //  \d+     一个或多个数字：42
+                    //  (\.\d+)?  可选的小数部分：.14
+                    //  ([eE][+-]?\d+)?  可选的科学计数法：e10  E-3
+                    // 匹配：42  3.14  1e10  2.5E-3
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],  // → #b5cea8 浅绿
+
+                    // /[a-zA-Z_]\w*/  →  字母或下划线开头 + 任意字母数字下划线
+                    // 匹配所有标识符：print  def  myVar  Student
+                    // 匹配后用 cases 查表决定是哪种 token
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',                  // 在 keywords 数组 → #569cd6 蓝
+                            '@builtins': 'predefined',               // 在 builtins 数组 → #dcdcaa 黄
+                            '@typeKeywords': 'type',                 // 在 typeKeywords  → #4ec9b0 青
+                            '@default': 'identifier',                // 都不在           → #9cdcfe 浅蓝
+                        }
+                    }],
+
+                    // /[{}()\[\]]/  →  匹配 { } ( ) [ ] 中的任意一个
+                    // \[ \] 需要转义，因为 [] 在正则里是字符类语法
+                    [/[{}()\[\]]/, '@brackets'],                     // → #ffd700 金
+
+                    // /[,;]/  →  逗号或分号
+                    [/[,;]/, 'delimiter'],                           // → #d4d4d4 灰
+                ],
+
+                // ── string_double 状态：双引号字符串内部 ──
+                // 进入时机：root 里遇到 " 跳转过来
+                string_double: [
+                    // /[^\\"]+/  →  一个或多个「非引号且非反斜杠」的字符
+                    // 匹配：hello world（字符串里的普通内容）
+                    [/[^\\"]+/, 'string'],                           // → #ce9178 橙
+
+                    // /\\./  →  反斜杠 + 任意一个字符
+                    // 匹配：\n  \t  \"  \\
+                    [/\\./, 'string.escape'],                        // → #d7ba7d 金
+
+                    // /"/  →  遇到闭合引号，字符串结束
+                    [/"/, 'string', '@pop'],                          // → #ce9178 橙，@pop 回 root
+                ],
+
+                // ── string_single 状态：单引号字符串内部 ──
+                string_single: [
+                    // /[^\\']+/  →  非单引号且非反斜杠
+                    [/[^\\']+/, 'string'],                           // → #ce9178 橙
+                    [/\\./, 'string.escape'],                        // → #d7ba7d 金
+                    [/'/, 'string', '@pop'],                          // → @pop 回 root
+                ],
+
+                // ── triple_double 状态：三引号字符串内部 ──
+                // 只有 """ 才能结束，单个 " 不结束
+                triple_double: [
+                    // /[^"]+/  →  一个或多个非引号字符（吃掉所有普通内容）
+                    [/[^"]+/, 'string'],                             // → #ce9178 橙
+
+                    // /"""/  →  三个引号，字符串结束
+                    [/"""/, 'string', '@pop'],                        // → @pop 回 root
+
+                    // /"/  →  只有一个引号，不够三个，不结束
+                    [/"/, 'string'],                                  // → #ce9178 橙
+                ],
+
+                // ── triple_single 状态：三单引号字符串内部 ──
+                triple_single: [
+                    [/[^']+/, 'string'],                             // → #ce9178 橙
+                    [/'''/, 'string', '@pop'],                        // → @pop 回 root
+                    [/'/, 'string'],                                  // → #ce9178 橙
+                ],
+
+                // ── fstring 状态：f-string 内部 ──
+                // 和普通字符串的区别：{ 要切换到表达式状态
+                fstring: [
+                    // /\{/  →  左花括号，进入表达式
+                    [/\{/, {token: 'delimiter.bracket', next: '@fstring_expr'}],  // → #ffd700 金
+
+                    // /[^\\"{]+/  →  非反斜杠、非引号、非花括号的字符
+                    // 排除了 \ " { 三种特殊字符，剩下的都是普通文字
+                    [/[^\\"{]+/, 'string'],                          // → #ce9178 橙
+
+                    // /\\./  →  转义字符
+                    [/\\./, 'string.escape'],                        // → #d7ba7d 金
+
+                    // /"/  →  引号结束 f-string
+                    [/"/, 'string', '@pop'],                          // → @pop 回 root
+                ],
+
+                // ── fstring_expr 状态：f"{name}" 的 {} 里面 ──
+                // 里面是普通代码，复用 root 规则
+                fstring_expr: [
+                    // /\}/  →  右花括号，表达式结束
+                    [/\}/, {token: 'delimiter.bracket', next: '@pop'}],  // → #ffd700 金，@pop 回 fstring
+
+                    // {} 里面就是普通代码，复用 root 的所有规则
+                    {include: 'root'},
+                ],
+            },
+        });
+
+        // 创建编辑器（和 01 一样，但现在有语法高亮了）
+        monaco.editor.create(document.getElementById('editor'), {
+            value: [
+                'import os',
+                'from pathlib import Path',
+                '',
+                '',
+                'class Student:',
+                '    """学生类"""',
+                '',
+                '    def __init__(self, name: str, score: int) -> None:',
+                '        self.name = name',
+                '        self.score = score',
+                '',
+                '    def passed(self) -> bool:',
+                '        return self.score >= 60',
+                '',
+                '',
+                's = Student("Alice", 85)',
+                'print(f"{s.name} passed: {s.passed()}")',
+                '',
+            ].join('\n'),
+            language: 'python',
+            theme: 'vs-dark',
+            fontSize: 14,
+            minimap: {enabled: false},
+        });
+
+    });
+
+</script>
+</body>
+</html>

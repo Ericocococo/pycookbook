@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>前置 ① HTML 基础结构</title>
+    <!--
+      HTML 文件就是一个文本文件，浏览器从上到下读，按标签渲染。
+
+      最小结构：
+        <!DOCTYPE html>    告诉浏览器"我是 HTML5"
+        <html>             根标签，所有内容在里面
+          <head>           头部：标题、编码、样式（用户看不见）
+          <body>           身体：页面上看得见的内容
+        </html>
+
+      常用标签（本文件用到的）：
+        <h1>~<h6>   标题（1 最大 6 最小）
+        <p>         段落
+        <ul>/<li>   无序列表
+        <div>       容器（没有语义，纯粹用来分组/布局）
+        <span>      行内容器（和 div 类似但不换行）
+        <code>      代码片段
+
+      双击本文件即可在浏览器中打开查看效果。
+    -->
+</head>
+<body>
+
+<!-- h1 = 一级标题 -->
+<h1>HTML 基础结构</h1>
+
+<!-- p = 段落 -->
+<p>这是一个段落。HTML 用标签描述内容结构，浏览器负责渲染。</p>
+
+<!-- ul + li = 无序列表 -->
+<p>HTML 文件的三大块：</p>
+<ul>
+    <li><code>&lt;head&gt;</code> — 元信息（标题、编码），用户看不见</li>
+    <li><code>&lt;body&gt;</code> — 页面内容，用户看得见</li>
+    <li><code>&lt;script&gt;</code> — JavaScript 代码，让页面"动起来"</li>
+</ul>
+
+<!-- div = 容器，用来分组 -->
+<div>
+    <h2>div 容器</h2>
+    <p>div 本身不可见，但可以用 CSS 给它加背景色、边框，让它变成一个"盒子"。</p>
+    <p>Monaco 编辑器就是挂载在一个 <code>&lt;div id="editor"&gt;</code> 上的。</p>
+</div>
+
+<!-- 查看源码提示 -->
+<p style="color: gray; margin-top: 40px;">
+    右键 → 查看网页源代码（或 Ctrl+U），对照注释理解每个标签。
+</p>
+
+</body>
+</html>

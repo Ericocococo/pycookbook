@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>前置 ⑤ CDN 加载 + WebSocket</title>
+    <!--
+      两个 Monaco 依赖的前置知识：
+        1. CDN 加载第三方库（Monaco 就是这样加载的）
+        2. WebSocket（浏览器连 bridge 用的）
+
+      CDN（Content Delivery Network）：
+        用 <script src="https://cdn.xxx/lib.js"> 直接从网上加载别人的库。
+        不用安装，引用即用。
+        类比 Python: 相当于 pip install 但不用本地装，import 时从网上拉。
+
+        Monaco 的加载方式：
+          <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js">
+          这只是加载了 loader（模块加载器），然后 require() 按需加载编辑器本体。
+
+      WebSocket：
+        HTTP 是"一问一答"：浏览器请求 → 服务器响应 → 断开。
+        WebSocket 是"保持连线"：连上后双方随时互发消息，直到关闭。
+        类比 Python: websockets.sync.client.connect() 就是 WebSocket 客户端。
+
+        Monaco 需要 WebSocket 的原因：
+          Pyright 会主动推诊断消息，HTTP 做不到"服务器主动给浏览器发消息"。
+
+      本文件演示：
+        ① CDN 加载 lodash 库并使用
+        ② WebSocket 连接 echo 服务器
+
+      注意：② 需要先启动 echo 服务端（另开一个终端）：
+        cd D:\workspace\pycharm_workspace\d\pycookbook\10_ops\09_pyright
+        python 03_step_by_step/07_01_websocket_server.py --serve
+        # 看到 "回声服务端: ws://127.0.0.1:3001" 就说明启动成功
+    -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+            padding: 20px;
+        }
+
+        h2 {
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        h3 {
+            margin: 20px 0 8px;
+            font-size: 14px;
+            color: #569cd6;
+        }
+
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            border-radius: 3px;
+            margin: 4px;
+        }
+
+        input {
+            background: #333;
+            color: #ccc;
+            border: 1px solid #555;
+            padding: 6px 10px;
+            font-size: 13px;
+            border-radius: 3px;
+            width: 200px;
+        }
+
+        #log {
+            background: #252526;
+            padding: 12px;
+            border: 1px solid #444;
+            font-family: monospace;
+            font-size: 13px;
+            min-height: 150px;
+            margin-top: 12px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+    </style>
+</head>
+<body>
+
+<h2>CDN 加载 + WebSocket</h2>
+
+<!-- ① CDN 部分 -->
+<h3>① CDN 加载第三方库</h3>
+<p>点按钮调用 CDN 加载的 lodash 库：</p>
+<button id="btn-cdn">_.shuffle([1,2,3,4,5])</button>
+
+<!-- ② WebSocket 部分 -->
+<h3>② WebSocket（需先启动 echo 服务端）</h3>
+<p style="color:#888; font-size:12px; margin-bottom:8px;">
+  启动命令：python 03_step_by_step/07_01_websocket_server.py --serve
+</p>
+<span id="ws-status" class="status disconnected">未连接</span>
+<br><br>
+<input id="msg-input" placeholder="输入消息" value="你好">
+<button id="btn-send">发送</button>
+<button id="btn-connect">连接 ws://127.0.0.1:3001</button>
+
+<div id="log">等待操作...\n</div>
+
+<!-- ① CDN 加载 lodash（一个工具函数库） -->
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+<!-- 加载完后，全局变量 _ 就可以用了（和 Monaco 加载后 monaco 可用一样） -->
+
+<script>
+    var logEl = document.getElementById('log');
+
+    function log(msg) {
+        logEl.textContent += msg + '\n';
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ──────────────────────────────────────
+    // ① CDN：lodash 已通过 <script> 加载，直接用 _
+    // ──────────────────────────────────────
+    document.getElementById('btn-cdn').addEventListener('click', function () {
+        var arr = [1, 2, 3, 4, 5];
+        var shuffled = _.shuffle(arr);  // lodash 的洗牌函数
+        log('[CDN] _.shuffle([1,2,3,4,5]) = [' + shuffled.join(', ') + ']');
+    });
+
+    log('[CDN] lodash 版本: ' + _.VERSION + '（从 CDN 加载）');
+    log('');
+
+    // 类比 Monaco 的加载方式：
+    //   <script src="cdn/loader.js">       ← 只加载 loader
+    //   require(['vs/editor/editor.main'])  ← loader 再按需加载编辑器
+    // 原理一样：先加载入口，入口再加载其他模块
+
+    // ──────────────────────────────────────
+    // ② WebSocket：和 echo 服务端通信
+    // ──────────────────────────────────────
+    var wsStatusEl = document.getElementById('ws-status');
+    var ws = null;
+
+    document.getElementById('btn-connect').addEventListener('click', function () {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            log('[WS] 已经连着了');
+            return;
+        }
+
+        // 创建 WebSocket 连接（和 Python 的 connect() 一样）
+        ws = new WebSocket('ws://127.0.0.1:3001');
+
+        // 连上时触发
+        ws.onopen = function () {
+            wsStatusEl.textContent = '已连接';
+            wsStatusEl.className = 'status connected';
+            log('[WS] 连接成功');
+        };
+
+        // 收到消息时触发（echo 服务端会原样返回）
+        ws.onmessage = function (event) {
+            log('[WS] 收到: ' + event.data);
+        };
+
+        // 断开时触发
+        ws.onclose = function () {
+            wsStatusEl.textContent = '未连接';
+            wsStatusEl.className = 'status disconnected';
+            log('[WS] 连接断开');
+        };
+    });
+
+    // 发送消息
+    document.getElementById('btn-send').addEventListener('click', function () {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            log('[WS] 未连接，先点"连接"按钮');
+            return;
+        }
+        var msg = document.getElementById('msg-input').value;
+        ws.send(msg);
+        log('[WS] 发送: ' + msg);
+    });
+
+    // 类比 Monaco 里的 WebSocket：
+    //   ws = new WebSocket('ws://127.0.0.1:3001')  ← 连 bridge
+    //   ws.onmessage = (event) => { ... }           ← 收诊断/补全响应
+    //   ws.send(JSON.stringify({...}))               ← 发 LSP 请求
+</script>
+
+</body>
+</html>

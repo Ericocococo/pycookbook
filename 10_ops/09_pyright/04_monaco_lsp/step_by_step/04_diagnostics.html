@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>④ 红色波浪线（诊断推送）</title>
+    <!--
+      在 03 基础上，处理 Pyright 推送的 publishDiagnostics 消息，
+      把类型错误显示为编辑器里的红色波浪线。
+
+      原理：
+        - Pyright 分析完代码后，主动推 textDocument/publishDiagnostics
+        - 推送内容：哪个文件、哪一行哪一列、什么错误、严重级别
+        - 我们把它转成 Monaco 的 Marker，编辑器自动画波浪线
+
+      新增内容（相比 03）：
+        ★ ws.onmessage 里处理 publishDiagnostics
+        ★ monaco.editor.setModelMarkers() —— 设置诊断标记
+        ★ severity 映射：1=Error红 2=Warning黄 3=Info蓝
+
+      运行前先启动 bridge：
+        python 02_lsp_bridge_ws.py --serve
+    -->
+    <style>
+        body {
+            margin: 0;
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+        }
+
+        #header {
+            padding: 8px 16px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #header h1 {
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        #status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #editor {
+            width: 100%;
+            height: calc(100vh - 37px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>④ 诊断（红色波浪线）</h1>
+    <span id="status" class="disconnected">未连接</span>
+</div>
+<div id="editor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        monaco.languages.register({id: 'python'});
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+            keywords: ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield'],
+            builtins: ['abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir', 'enumerate', 'filter', 'float', 'format', 'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'map', 'max', 'min', 'next', 'object', 'open', 'ord', 'pow', 'print', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip'],
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+            tokenizer: {
+                root: [
+                    [/@[a-zA-Z_]\w*/, 'tag'], [/#.*$/, 'comment'],
+                    [/"""/, 'string', '@tdq'], [/'''/, 'string', '@tsq'],
+                    [/f"/, 'string', '@fs'], [/"/, 'string', '@dq'], [/'/, 'string', '@sq'],
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@typeKeywords': 'type',
+                            '@default': 'identifier'
+                        }
+                    }],
+                    [/[{}()\[\]]/, '@brackets'], [/[,;]/, 'delimiter'],
+                ],
+                dq: [[/[^\\"]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                sq: [[/[^\\']+/, 'string'], [/\\./, 'string.escape'], [/'/, 'string', '@pop']],
+                tdq: [[/[^"]+/, 'string'], [/"""/, 'string', '@pop'], [/"/, 'string']],
+                tsq: [[/[^']+/, 'string'], [/'''/, 'string', '@pop'], [/'/, 'string']],
+                fs: [[/\{/, {
+                    token: 'delimiter.bracket',
+                    next: '@fe'
+                }], [/[^\\"{]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                fe: [[/\}/, {token: 'delimiter.bracket', next: '@pop'}], {include: 'root'}],
+            },
+        });
+
+        // 初始代码故意包含类型错误，打开就能看到红色波浪线
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+            value: [
+                'class Student:',
+                '    def __init__(self, name: str, score: int) -> None:',
+                '        self.name = name',
+                '        self.score = score',
+                '',
+                '    def passed(self) -> bool:',
+                '        return self.score >= 60',
+                '',
+                '',
+                's = Student("Alice", 85)',
+                '',
+                '# 故意写错：str 赋给 int，Pyright 会标红',
+                'bad: int = "hello"',
+                '',
+            ].join('\n'),
+            language: 'python', theme: 'vs-dark', fontSize: 14,
+            minimap: {enabled: false},
+        });
+
+        const statusEl = document.getElementById('status');
+        let ws = null;
+        let requestId = 0;
+        const pendingRequests = new Map();
+
+        function connectLSP() {
+            ws = new WebSocket('ws://127.0.0.1:3001');
+
+            ws.onopen = () => {
+                statusEl.textContent = 'Pyright 已连接';
+                statusEl.className = 'connected';
+                sendRequest('initialize', {
+                    processId: null,
+                    capabilities: {
+                        textDocument: {
+                            publishDiagnostics: {relatedInformation: true},
+                        },
+                    },
+                    rootUri: null,
+                }).then(() => {
+                    sendNotification('initialized', {});
+                    sendNotification('textDocument/didOpen', {
+                        textDocument: {
+                            uri: 'file:///workspace/main.py',
+                            languageId: 'python', version: 1,
+                            text: editor.getValue(),
+                        },
+                    });
+                });
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // 请求-响应匹配器：
+                //   发请求时 sendRequest 把 {resolve} 存进 pendingRequests（按 id）
+                //   收响应时在这里按 id 找到对应的 resolve，调它把结果交给 .then()
+                //
+                // 流程：
+                //   sendRequest('initialize')
+                //     → pendingRequests.set(1, {resolve})  存起来
+                //     → ws.send({id:1, ...})               发出去
+                //     → 返回 Promise 等着
+                //   ws.onmessage 收到 {id:1, result:{...}}
+                //     → pendingRequests.get(1).resolve(result)  兑现 Promise
+                //     → .then(result => ...) 收到结果
+                //     → pendingRequests.delete(1)  清掉
+                //
+                // resolve 是 new Promise((resolve) => {...}) 给的参数
+                // 调 resolve(值) = "承诺兑现，结果给你"
+                // Promise / Map / JSON 都是浏览器内置的全局类，不用定义
+                // 类比 Python 的 dict / list / int 不用 import
+                if ('id' in data && pendingRequests.has(data.id)) {
+                    pendingRequests.get(data.id).resolve(data.result);
+                    pendingRequests.delete(data.id);
+                }
+
+                // ★ 新增：处理诊断推送 → 红色波浪线
+                //
+                // Pyright 主动推的通知（无 id），data 长这样（03_step_by_step/08_02 里见过）：
+                //   {method: 'textDocument/publishDiagnostics',
+                //    params: {uri: 'file:///workspace/main.py', diagnostics: [
+                //      {range: {start: {line:12, character:9}, end: {line:12, character:16}},
+                //       message: 'Type "str" is not assignable to "int"',
+                //       severity: 1, source: 'Pyright'}
+                //    ]}}
+                //
+                // 用 bad: int = "hello" 走一遍：
+                //   Pyright 推: severity=1, line=12, char=9~16, message='Type "str"...'
+                //   转换后:     severity=Error, 行=13, 列=10~17（+1 转 Monaco 坐标）
+                //   Monaco:     第13行第10-17列画红色波浪线，悬停显示错误信息
+                //
+                if (data.method === 'textDocument/publishDiagnostics') {
+
+                    // severity 查表：LSP 用数字（1/2/3），Monaco 用枚举常量
+                    const severityMap = {
+                        1: monaco.MarkerSeverity.Error,     // 红色波浪线
+                        2: monaco.MarkerSeverity.Warning,   // 黄色波浪线
+                        3: monaco.MarkerSeverity.Info,      // 蓝色波浪线
+                    };
+
+                    // .map(d => ({...})) 遍历数组，每项转换后返回新数组
+                    // 类比 Python: [{"severity": ..., "message": d["message"]} for d in diagnostics]
+                    // d 是每条诊断，=> ({...}) 是转换成 Monaco 格式的 marker 对象
+                    const markers = data.params.diagnostics.map(d => ({
+
+                        // severityMap[1] → Error（红），severityMap[2] → Warning（黄）
+                        // || 是"或"，查不到就用 Info 兜底
+                        severity: severityMap[d.severity] || monaco.MarkerSeverity.Info,
+
+                        // LSP 行列从 0 开始（程序员习惯），Monaco 从 1 开始（用户习惯）
+                        startLineNumber: d.range.start.line + 1,       // 波浪线起始行
+                        startColumn: d.range.start.character + 1,      // 波浪线起始列
+                        endLineNumber: d.range.end.line + 1,           // 波浪线结束行
+                        endColumn: d.range.end.character + 1,          // 波浪线结束列
+
+                        message: d.message,              // 鼠标悬停波浪线时显示的错误文字
+                        source: d.source || 'Pyright',   // 谁报的错（|| 是"或"，没有就用默认值 'Pyright'）
+                    }));
+
+                    // 把 markers 设置到编辑器上，Monaco 自动画波浪线
+                    // editor.getModel() → 获取文档模型（文本内容 + 标记）
+                    //   editor 是界面（UI），model 是数据（文件内容）
+                    //   标记贴在 model 上，编辑器自动渲染波浪线
+                    // 'pyright' → 来源标签，自己起的名字，区分不同检查器
+                    //   断开时用空数组清除: setModelMarkers(model, 'pyright', [])
+                    // markers → marker 数组（在哪画、什么颜色、显示什么信息）
+                    monaco.editor.setModelMarkers(editor.getModel(), 'pyright', markers);
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = '未连接（5秒后重试）';
+                statusEl.className = 'disconnected';
+                monaco.editor.setModelMarkers(editor.getModel(), 'pyright', []);
+                setTimeout(connectLSP, 5000);
+            };
+        }
+
+        function sendRequest(method, params) {
+            const id = ++requestId;
+            // new Promise 创建时立刻执行里面的函数，resolve 是 Promise 给的"兑现回调"
+            return new Promise((resolve) => {
+                // 把 resolve 按 id 存进 Map（中转站）
+                // 为什么要存？因为同时可能有多个请求在等响应，要按 id 对号入座：
+                //   sendRequest('initialize')  → id=1, Map: {1: resolve_1}
+                //   sendRequest('completion')  → id=2, Map: {1: resolve_1, 2: resolve_2}
+                //   onmessage 收到 {id:2} → get(2).resolve() → resolve_2 收到结果
+                //   onmessage 收到 {id:1} → get(1).resolve() → resolve_1 收到结果
+                // 如果不存，只有一个 resolve 变量，第二个请求就覆盖第一个了
+                pendingRequests.set(id, {resolve});
+                ws.send(JSON.stringify({jsonrpc: '2.0', id, method, params}));
+            });
+        }
+
+        function sendNotification(method, params) {
+            ws.send(JSON.stringify({jsonrpc: '2.0', method, params}));
+        }
+
+        let version = 1;
+        editor.onDidChangeModelContent(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            version++;
+            sendNotification('textDocument/didChange', {
+                textDocument: {uri: 'file:///workspace/main.py', version},
+                contentChanges: [{text: editor.getValue()}],
+            });
+        });
+
+        connectLSP();
+    });
+
+</script>
+</body>
+</html>

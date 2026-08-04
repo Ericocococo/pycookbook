@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>前置 ③ JS 操作 DOM</title>
+    <!--
+      JavaScript 让页面"动起来"：读内容、改内容、加内容。
+
+      DOM（Document Object Model）：
+        浏览器把 HTML 解析成一棵对象树，每个标签是一个节点。
+        JS 通过 document 对象操作这棵树。
+
+      核心 API（Monaco 用到的）：
+        document.getElementById('xxx')    按 id 找元素
+        element.textContent               读/写文字内容
+        element.className                 读/写 CSS 类名
+        element.innerHTML                 读/写 HTML 内容（慎用）
+
+      类比 Python：
+        document.getElementById('box')  ≈  soup.find(id='box')
+        el.textContent = 'hi'           ≈  tag.string = 'hi'
+        el.className = 'active'         ≈  tag['class'] = 'active'
+    -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+            padding: 20px;
+        }
+
+        .status {
+            font-size: 14px;
+            padding: 4px 12px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #output {
+            background: #252526;
+            padding: 12px;
+            border: 1px solid #444;
+            font-family: monospace;
+            font-size: 14px;
+            min-height: 100px;
+            margin-top: 12px;
+            white-space: pre-wrap;
+        }
+
+        .note {
+            color: #888;
+            font-size: 13px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h2 style="margin-bottom: 12px;">JS 操作 DOM</h2>
+
+<!-- 状态指示灯：JS 会修改它的文字和类名 -->
+<span id="status" class="status disconnected">未连接</span>
+
+<!-- 输出区域：JS 会往里面写内容 -->
+<div id="output">等待 JS 执行...</div>
+
+<p class="note">
+    打开浏览器控制台（F12）看 console.log 输出。<br>
+    对比 03_websocket.html 里的状态切换，原理一样。
+</p>
+
+<script>
+    // ── getElementById：按 id 找到 DOM 元素 ──
+    var statusEl = document.getElementById('status');
+    var outputEl = document.getElementById('output');
+
+    // ── textContent：修改文字 ──
+    // Monaco 里连上 WebSocket 后就是这样切换状态文字的
+    statusEl.textContent = 'Pyright 已连接';
+
+    // ── className：修改 CSS 类 → 变色 ──
+    statusEl.className = 'status connected';
+
+    // ── 往 output 写内容 ──
+    var lines = [];
+    lines.push('1. getElementById 找到了 #status 和 #output');
+    lines.push('2. textContent 把文字改成了"Pyright 已连接"');
+    lines.push('3. className 把类从 disconnected 换成 connected → 变绿');
+    lines.push('');
+    lines.push('// 等价 Python（BeautifulSoup）:');
+    lines.push('// status_el = soup.find(id="status")');
+    lines.push('// status_el.string = "Pyright 已连接"');
+    lines.push('// status_el["class"] = "status connected"');
+    outputEl.textContent = lines.join('\n');
+
+    // console.log 输出到浏览器控制台（F12 打开）
+    console.log('status 元素:', statusEl);
+    console.log('output 元素:', outputEl);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>⑥ 悬浮文档</title>
+    <!--
+      在 05 基础上，注册悬浮文档提供者。
+      鼠标悬停在函数/变量上，弹出类型签名和文档。
+
+      原理：
+        - monaco.languages.registerHoverProvider 注册悬浮回调
+        - 鼠标悬停时，Monaco 调回调函数
+        - 回调里发 LSP textDocument/hover 请求给 Pyright
+        - 把 Pyright 返回的 markdown 文档显示在悬浮框里
+
+      新增内容（相比 05）：
+        ★ registerHoverProvider —— 注册悬浮文档
+        ★ textDocument/hover 请求
+
+      这是最终版，包含全部 6 个功能：
+        ① Monaco 编辑器
+        ② Python 语法高亮
+        ③ WebSocket 连接 + LSP 初始化
+        ④ 红色波浪线（诊断推送）
+        ⑤ 代码补全
+        ⑥ 悬浮文档
+
+      运行前先启动 bridge：
+        python 02_lsp_bridge_ws.py --serve
+    -->
+    <style>
+        body {
+            margin: 0;
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+        }
+
+        #header {
+            padding: 8px 16px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #header h1 {
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        #status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #editor {
+            width: 100%;
+            height: calc(100vh - 37px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>⑥ 悬浮文档（完整版）</h1>
+    <span id="status" class="disconnected">未连接</span>
+</div>
+<div id="editor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        monaco.languages.register({id: 'python'});
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+            keywords: ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield'],
+            builtins: ['abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir', 'enumerate', 'filter', 'float', 'format', 'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'map', 'max', 'min', 'next', 'object', 'open', 'ord', 'pow', 'print', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip'],
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+            tokenizer: {
+                root: [
+                    [/@[a-zA-Z_]\w*/, 'tag'], [/#.*$/, 'comment'],
+                    [/"""/, 'string', '@tdq'], [/'''/, 'string', '@tsq'],
+                    [/f"/, 'string', '@fs'], [/"/, 'string', '@dq'], [/'/, 'string', '@sq'],
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@typeKeywords': 'type',
+                            '@default': 'identifier'
+                        }
+                    }],
+                    [/[{}()\[\]]/, '@brackets'], [/[,;]/, 'delimiter'],
+                ],
+                dq: [[/[^\\"]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                sq: [[/[^\\']+/, 'string'], [/\\./, 'string.escape'], [/'/, 'string', '@pop']],
+                tdq: [[/[^"]+/, 'string'], [/"""/, 'string', '@pop'], [/"/, 'string']],
+                tsq: [[/[^']+/, 'string'], [/'''/, 'string', '@pop'], [/'/, 'string']],
+                fs: [[/\{/, {
+                    token: 'delimiter.bracket',
+                    next: '@fe'
+                }], [/[^\\"{]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                fe: [[/\}/, {token: 'delimiter.bracket', next: '@pop'}], {include: 'root'}],
+            },
+        });
+
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+            value: [
+                'class Student:',
+                '    def __init__(self, name: str, score: int) -> None:',
+                '        self.name = name',
+                '        self.score = score',
+                '',
+                '    def passed(self) -> bool:',
+                '        """是否及格（60 分）"""',
+                '        return self.score >= 60',
+                '',
+                '    def grade(self) -> str:',
+                '        """等级：A/B/C/D"""',
+                '        if self.score >= 90:',
+                '            return "A"',
+                '        if self.score >= 75:',
+                '            return "B"',
+                '        if self.score >= 60:',
+                '            return "C"',
+                '        return "D"',
+                '',
+                '',
+                's = Student("Alice", 85)',
+                '',
+                '# 故意写错：str 赋给 int，Pyright 会标红',
+                'bad: int = "hello"',
+                '',
+                '# 试试：',
+                '# 1. 红色波浪线 → 上面 bad 那行',
+                '# 2. 输入 s. → 补全弹出 name/score/passed/grade',
+                '# 3. 鼠标悬停 passed → 显示函数签名和文档',
+                '',
+            ].join('\n'),
+            language: 'python', theme: 'vs-dark', fontSize: 14,
+            minimap: {enabled: false},
+            suggest: {showMethods: true, showFunctions: true},
+            quickSuggestions: true,
+        });
+
+        const statusEl = document.getElementById('status');
+        let ws = null;
+        let requestId = 0;
+        const pendingRequests = new Map();
+
+        function connectLSP() {
+            ws = new WebSocket('ws://127.0.0.1:3001');
+            ws.onopen = () => {
+                statusEl.textContent = 'Pyright 已连接';
+                statusEl.className = 'connected';
+                sendRequest('initialize', {
+                    processId: null,
+                    capabilities: {
+                        textDocument: {
+                            completion: {completionItem: {snippetSupport: true}},
+                            hover: {contentFormat: ['markdown', 'plaintext']},
+                            publishDiagnostics: {relatedInformation: true},
+                        },
+                    },
+                    rootUri: null,
+                }).then(() => {
+                    sendNotification('initialized', {});
+                    sendNotification('textDocument/didOpen', {
+                        textDocument: {
+                            uri: 'file:///workspace/main.py',
+                            languageId: 'python', version: 1,
+                            text: editor.getValue(),
+                        },
+                    });
+                });
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if ('id' in data && pendingRequests.has(data.id)) {
+                    pendingRequests.get(data.id).resolve(data.result);
+                    pendingRequests.delete(data.id);
+                }
+                if (data.method === 'textDocument/publishDiagnostics') {
+                    const markers = data.params.diagnostics.map(d => ({
+                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error
+                            : d.severity === 2 ? monaco.MarkerSeverity.Warning
+                                : monaco.MarkerSeverity.Info,
+                        startLineNumber: d.range.start.line + 1,
+                        startColumn: d.range.start.character + 1,
+                        endLineNumber: d.range.end.line + 1,
+                        endColumn: d.range.end.character + 1,
+                        message: d.message,
+                        source: d.source || 'Pyright',
+                    }));
+                    monaco.editor.setModelMarkers(editor.getModel(), 'pyright', markers);
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = '未连接（5秒后重试）';
+                statusEl.className = 'disconnected';
+                monaco.editor.setModelMarkers(editor.getModel(), 'pyright', []);
+                setTimeout(connectLSP, 5000);
+            };
+        }
+
+        function sendRequest(method, params) {
+            const id = ++requestId;
+            return new Promise((resolve) => {
+                pendingRequests.set(id, {resolve});
+                ws.send(JSON.stringify({jsonrpc: '2.0', id, method, params}));
+            });
+        }
+
+        function sendNotification(method, params) {
+            ws.send(JSON.stringify({jsonrpc: '2.0', method, params}));
+        }
+
+        let version = 1;
+        editor.onDidChangeModelContent(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            version++;
+            sendNotification('textDocument/didChange', {
+                textDocument: {uri: 'file:///workspace/main.py', version},
+                contentChanges: [{text: editor.getValue()}],
+            });
+        });
+
+        // 补全提供者（和 05 一样）
+        monaco.languages.registerCompletionItemProvider('python', {
+            triggerCharacters: ['.'],
+            provideCompletionItems: async (model, position) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return {suggestions: []};
+                const result = await sendRequest('textDocument/completion', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+                if (!result || !result.items) return {suggestions: []};
+                return {
+                    suggestions: result.items.map(item => ({
+                        label: item.label,
+                        kind: item.kind || monaco.languages.CompletionItemKind.Function,
+                        sortText: item.sortText || item.label,
+                        detail: item.detail || '',
+                        documentation: item.documentation,
+                        insertText: item.insertText || item.label,
+                    })),
+                };
+            },
+        });
+
+        // ★ 新增：悬浮文档提供者
+        //
+        // 功能：鼠标悬停在函数/变量上时，弹出类型签名和文档
+        // 例如悬停在 passed 上显示：
+        //   (method) Student.passed() -> bool
+        //   是否及格（60 分）
+        //
+        // 和补全提供者同一个模式：
+        //   补全：registerCompletionItemProvider → 输入 . 时触发
+        //   悬浮：registerHoverProvider          → 鼠标悬停时触发
+        //
+        monaco.languages.registerHoverProvider('python', {
+
+            // Monaco 鼠标悬停时调这个函数
+            // model = 文档模型，position = 鼠标位置
+            provideHover: async (model, position) => {
+
+                // 没连上返回 null（不弹悬浮框）
+                if (!ws || ws.readyState !== WebSocket.OPEN) return null;
+
+                // 发 LSP hover 请求给 Pyright
+                // "鼠标在这个位置，告诉我这个符号的类型和文档"
+                const result = await sendRequest('textDocument/hover', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+
+                // Pyright 没返回内容就不弹
+                if (!result || !result.contents) return null;
+
+                // Pyright 返回的 contents 格式不固定：
+                //   可能是字符串: "def passed(self) -> bool"
+                //   可能是对象:  {kind: "markdown", value: "```python\ndef passed(self) -> bool\n```"}
+                // typeof 判断类型，是字符串直接用，否则取 .value
+                // 类比 Python: value = contents if isinstance(contents, str) else contents.get("value", "")
+                const value = typeof result.contents === 'string'
+                    ? result.contents
+                    : result.contents.value || '';
+
+                return {
+                    // 悬浮框显示的内容（markdown 格式，Monaco 自动渲染）
+                    contents: [{value}],
+
+                    // 高亮范围：悬停时给标识符加背景色
+                    // 三元表达式：result.range 有值 ? 创建高亮范围 : undefined（不高亮）
+                    // undefined 是 JS 的"没有值"，类比 Python 的 None
+                    // new monaco.Range(起始行, 起始列, 结束行, 结束列)
+                    //
+                    // 例：悬停 passed 时，Pyright 返回 range = {start:{line:5,character:8}, end:{line:5,character:14}}
+                    // 转成 Monaco: new monaco.Range(6, 9, 6, 15)  → 第6行第9~15列加背景色，框住 "passed"
+                    range: result.range ? new monaco.Range(
+                        result.range.start.line + 1, result.range.start.character + 1,
+                        result.range.end.line + 1, result.range.end.character + 1,
+                    ) : undefined,
+                };
+            },
+        });
+
+        connectLSP();
+    });
+
+</script>
+</body>
+</html>

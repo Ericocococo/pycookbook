@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>⑤ 代码补全</title>
+    <!--
+      在 04 基础上，注册补全提供者，输入 s. 弹出补全菜单。
+
+      原理：
+        - monaco.languages.registerCompletionItemProvider 注册补全回调
+        - 用户输入 . 或按 Ctrl+Space 时，Monaco 调回调函数
+        - 回调里发 LSP textDocument/completion 请求给 Pyright
+        - 把 Pyright 返回的 items 转成 Monaco 的 suggestions 格式
+
+      关键字段映射（LSP → Monaco）：
+        label      → label       显示文字
+        kind       → kind        图标类型
+        detail     → detail      右侧灰字说明
+        sortText   → sortText    排序键（00=自定义, 09=常用, 13=dunder）
+        insertText → insertText  选中后插入的文本
+
+      新增内容（相比 04）：
+        ★ registerCompletionItemProvider —— 注册补全
+        ★ triggerCharacters: ['.'] —— 输入点号自动触发
+
+      运行前先启动 bridge：
+        python 02_lsp_bridge_ws.py --serve
+    -->
+    <style>
+        body {
+            margin: 0;
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+        }
+
+        #header {
+            padding: 8px 16px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #header h1 {
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        #status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #editor {
+            width: 100%;
+            height: calc(100vh - 37px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>⑤ 代码补全</h1>
+    <span id="status" class="disconnected">未连接</span>
+</div>
+<div id="editor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        monaco.languages.register({id: 'python'});
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+            keywords: ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield'],
+            builtins: ['abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir', 'enumerate', 'filter', 'float', 'format', 'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'map', 'max', 'min', 'next', 'object', 'open', 'ord', 'pow', 'print', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip'],
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+            tokenizer: {
+                root: [
+                    [/@[a-zA-Z_]\w*/, 'tag'], [/#.*$/, 'comment'],
+                    [/"""/, 'string', '@tdq'], [/'''/, 'string', '@tsq'],
+                    [/f"/, 'string', '@fs'], [/"/, 'string', '@dq'], [/'/, 'string', '@sq'],
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@typeKeywords': 'type',
+                            '@default': 'identifier'
+                        }
+                    }],
+                    [/[{}()\[\]]/, '@brackets'], [/[,;]/, 'delimiter'],
+                ],
+                dq: [[/[^\\"]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                sq: [[/[^\\']+/, 'string'], [/\\./, 'string.escape'], [/'/, 'string', '@pop']],
+                tdq: [[/[^"]+/, 'string'], [/"""/, 'string', '@pop'], [/"/, 'string']],
+                tsq: [[/[^']+/, 'string'], [/'''/, 'string', '@pop'], [/'/, 'string']],
+                fs: [[/\{/, {
+                    token: 'delimiter.bracket',
+                    next: '@fe'
+                }], [/[^\\"{]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                fe: [[/\}/, {token: 'delimiter.bracket', next: '@pop'}], {include: 'root'}],
+            },
+        });
+
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+            value: [
+                'class Student:',
+                '    def __init__(self, name: str, score: int) -> None:',
+                '        self.name = name',
+                '        self.score = score',
+                '',
+                '    def passed(self) -> bool:',
+                '        """是否及格"""',
+                '        return self.score >= 60',
+                '',
+                '',
+                's = Student("Alice", 85)',
+                '',
+                '# 试试：输入 s. 触发补全',
+                's.',
+                '',
+            ].join('\n'),
+            language: 'python', theme: 'vs-dark', fontSize: 14,
+            minimap: {enabled: false},
+            suggest: {showMethods: true, showFunctions: true},
+            quickSuggestions: true,
+        });
+
+        const statusEl = document.getElementById('status');
+        let ws = null;
+        let requestId = 0;
+        const pendingRequests = new Map();
+
+        function connectLSP() {
+            ws = new WebSocket('ws://127.0.0.1:3001');
+            ws.onopen = () => {
+                statusEl.textContent = 'Pyright 已连接';
+                statusEl.className = 'connected';
+                sendRequest('initialize', {
+                    processId: null,
+                    capabilities: {
+                        textDocument: {
+                            completion: {completionItem: {snippetSupport: true}},
+                            publishDiagnostics: {relatedInformation: true},
+                        },
+                    },
+                    rootUri: null,
+                }).then(() => {
+                    sendNotification('initialized', {});
+                    sendNotification('textDocument/didOpen', {
+                        textDocument: {
+                            uri: 'file:///workspace/main.py',
+                            languageId: 'python', version: 1,
+                            text: editor.getValue(),
+                        },
+                    });
+                });
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if ('id' in data && pendingRequests.has(data.id)) {
+                    pendingRequests.get(data.id).resolve(data.result);
+                    pendingRequests.delete(data.id);
+                }
+                if (data.method === 'textDocument/publishDiagnostics') {
+                    const markers = data.params.diagnostics.map(d => ({
+                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error
+                            : d.severity === 2 ? monaco.MarkerSeverity.Warning
+                                : monaco.MarkerSeverity.Info,
+                        startLineNumber: d.range.start.line + 1,
+                        startColumn: d.range.start.character + 1,
+                        endLineNumber: d.range.end.line + 1,
+                        endColumn: d.range.end.character + 1,
+                        message: d.message,
+                        source: d.source || 'Pyright',
+                    }));
+                    monaco.editor.setModelMarkers(editor.getModel(), 'pyright', markers);
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = '未连接（5秒后重试）';
+                statusEl.className = 'disconnected';
+                monaco.editor.setModelMarkers(editor.getModel(), 'pyright', []);
+                setTimeout(connectLSP, 5000);
+            };
+        }
+
+        function sendRequest(method, params) {
+            const id = ++requestId;
+            return new Promise((resolve) => {
+                pendingRequests.set(id, {resolve});
+                ws.send(JSON.stringify({jsonrpc: '2.0', id, method, params}));
+            });
+        }
+
+        function sendNotification(method, params) {
+            ws.send(JSON.stringify({jsonrpc: '2.0', method, params}));
+        }
+
+        let version = 1;
+        editor.onDidChangeModelContent(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            version++;
+            sendNotification('textDocument/didChange', {
+                textDocument: {uri: 'file:///workspace/main.py', version},
+                contentChanges: [{text: editor.getValue()}],
+            });
+        });
+
+        // ★ 新增：注册补全提供者
+        //
+        // registerCompletionItemProvider('python', { provideCompletionItems: fn })
+        //   告诉 Monaco："python 语言的补全，调 fn 来获取"
+        //   类比 Python: editor.register_completion(language='python', provider=fn)
+        //
+        // 触发时机：
+        //   1. 用户输入 triggerCharacters 里的字符（这里是 .）
+        //   2. 用户按 Ctrl+Space 手动触发
+        //   两种都会调 provideCompletionItems
+        //
+        monaco.languages.registerCompletionItemProvider('python', {
+            triggerCharacters: ['.'],  // 输入 . 自动触发
+
+            // Monaco 触发补全时调这个函数
+            // model = 文档模型（文本内容）
+            // position = 光标位置（行号和列号，从 1 开始）
+            // async 标记 = 里面可以用 await
+            provideCompletionItems: async (model, position) => {
+
+                // 没连上就返回空列表（不弹补全菜单）
+                if (!ws || ws.readyState !== WebSocket.OPEN) return {suggestions: []};
+
+                // 发 LSP completion 请求给 Pyright
+                // position.lineNumber 从 1 开始，LSP 从 0 开始，所以 -1
+                // await = 等 Pyright 返回结果后再继续（00_04 里学过）
+                const result = await sendRequest('textDocument/completion', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+
+                // Pyright 没返回结果就返回空列表
+                if (!result || !result.items) return {suggestions: []};
+
+                // 把 Pyright 返回的 LSP items 转成 Monaco 的 suggestions 格式
+                // .map() 遍历每项转换，类比 Python: [转换(item) for item in items]
+                //
+                // 字段映射（LSP → Monaco）：
+                //   label      → label       补全菜单里显示的文字（如 "append"）
+                //   kind       → kind        图标类型（2=Method 3=Function 6=Variable 10=Property）
+                //   sortText   → sortText    排序键（00=自定义最前, 09=常用, 13=dunder最后）
+                //   detail     → detail      右侧灰字说明（如 "(df: DataFrame) -> Series"）
+                //   documentation → documentation 选中时显示的文档
+                //   insertText → insertText  选中后插入的文本（通常和 label 一样）
+                //
+                // || 是"或"，左边没有就用右边的默认值
+
+                // 分开写，看清每一步：
+
+                // 第 1 步：定义转换函数（LSP 的一项 → Monaco 的一项）
+                function convertItem(item) {
+                    return {
+                        label: item.label,
+                        kind: item.kind || monaco.languages.CompletionItemKind.Function,
+                        sortText: item.sortText || item.label,
+                        detail: item.detail || '',
+                        documentation: item.documentation,
+                        insertText: item.insertText || item.label,
+                    };
+                }
+
+                // 第 2 步：遍历 Pyright 返回的所有项，逐个转换
+                // 类比 Python: suggestions = [convert_item(item) for item in result.items]
+                var suggestions = result.items.map(convertItem);
+
+                // 第 3 步：包装成 Monaco 要求的格式返回
+                return { suggestions: suggestions };
+
+                // 合在一起的写法（效果完全一样，只是更紧凑）：
+                // return {
+                //     suggestions: result.items.map(item => ({
+                //         label: item.label,
+                //         kind: item.kind || monaco.languages.CompletionItemKind.Function,
+                //         sortText: item.sortText || item.label,
+                //         detail: item.detail || '',
+                //         documentation: item.documentation,
+                //         insertText: item.insertText || item.label,
+                //     })),
+                // };
+            },
+        });
+
+        connectLSP();
+    });
+
+</script>
+</body>
+</html>

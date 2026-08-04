@@ -85,21 +85,39 @@ pycookbook/                               # 顶层仓库(可运行的配方集)
 ├── 03_stdlib/                            # ═══ 常用标准库(查得最勤)═══
 │   │                                     #   每个库一个子目录,内部按功能拆成多个带序号 .py;
 │   │                                     #   紧密相关的小库可合并一个目录(如 json_pickle、os_sys_subprocess)
-│   ├── 01_argparse/                      # 命令行解析: basic/types/actions/nargs/groups/subcommands/help/advanced
-│   ├── 02_collections/                   # namedtuple/deque/Counter/defaultdict/OrderedDict
-│   ├── 03_itertools_functools/           # 迭代器工具 + 高阶函数/lru_cache/partial
-│   ├── 04_datetime/                      # date/time/datetime/timedelta/时区
-│   ├── 05_json_pickle/                   # json 序列化 / pickle 对象持久化
-│   ├── 06_re_regex/                      # 正则: match/search/findall/sub/分组
-│   ├── 07_os_sys_subprocess/             # 路径/环境变量/进程调用
-│   ├── 08_logging/                       # logger/handler/formatter/级别
-│   ├── 09_dataclasses/                   # ★新增: @dataclass/field/post_init
-│   ├── 10_enum/                          # ★新增: Enum/IntEnum/auto/Flag
-│   ├── 11_typing/                        # ★新增: 泛型/Protocol/TypedDict/Union
-│   ├── 12_contextlib/                    # ★新增: contextmanager/suppress/ExitStack
-│   ├── 13_sqlite3/                       # ★新增: 连接/游标/事务/参数化查询
-│   ├── 14_hashlib_secrets/               # ★新增: 哈希/摘要/安全随机
-│   └── 15_concurrent_futures/            # ★新增: ThreadPool/ProcessPool/Executor
+│   ├── 01_argparse/                      # 命令行解析: basic/types/actions/nargs/groups/...
+│   ├── 02_pathlib/                       # Path 对象: 拼接/遍历/读写/文件系统操作
+│   ├── 03_shutil/                        # 高级文件操作: 复制/移动/归档/磁盘信息
+│   ├── 04_json/                          # JSON 序列化: dumps/loads/自定义编码/钩子
+│   ├── 05_os/                            # OS 接口: 路径/目录/文件/环境变量/进程
+│   ├── 06_sys/                           # 系统信息: 参数/路径/模块/IO 流
+│   ├── 07_subprocess/                    # 子进程: run/Popen/管道/超时
+│   ├── 08_importlib/                     # 动态导入: import_module/resource/metadata
+│   ├── 09_concurrency/                   # 并发: threading/multiprocessing/queue
+│   ├── 10_itertools/                     # 迭代器: count/cycle/chain/combinations/...
+│   ├── 11_functools/                     # 高阶函数: lru_cache/partial/reduce/...
+│   ├── 12_typing/                        # ★20260730 新增: 泛型/Protocol/TypedDict/Overload
+│   ├── 13_asyncio/                       # ★20260730 新增: async/await/gather/run_in_executor
+│   │
+│   ├─ 规划（尚未建目录，用到时取下一序号）─
+│   ├── NN_collections/                   # 规划: namedtuple/deque/Counter/defaultdict/ChainMap
+│   ├── NN_datetime/                      # 规划: date/time/datetime/timedelta/时区/calendar
+│   ├── NN_re/                            # 规划: 正则 match/search/findall/sub/分组/compile
+│   ├── NN_logging/                       # 规划: logger/handler/formatter/级别/Filter
+│   ├── NN_dataclasses/                   # 规划: @dataclass/field/post_init/__post_init__
+│   ├── NN_enum/                          # 规划: Enum/IntEnum/StrEnum/auto/Flag
+│   ├── NN_contextlib/                    # 规划: contextmanager/suppress/ExitStack/redirect_stdout
+│   ├── NN_sqlite3/                       # 规划: 连接/游标/事务/参数化查询/row_factory
+│   ├── NN_hashlib_secrets/               # 规划: md5/sha256/安全随机/token
+│   ├── NN_concurrent_futures/            # 规划: ThreadPoolExecutor/ProcessPoolExecutor/Future
+│   ├── NN_math_random_stats/             # 规划: sqrt/log/trig + random/shuffle/choices + mean/stdev/median
+│   ├── NN_csv_pickle/                    # 规划: csv 读写/DictReader/Pandas 互转 + pickle 序列化
+│   ├── NN_string_textwrap/               # 规划: 字符串常量/Formatter/textwrap/pprint
+│   ├── NN_gzip_tarfile/                  # 规划: gzip/gz/bz2 压缩 + tarfile/zipfile 归档
+│   ├── NN_urllib/                        # 规划: request/urlopen/parse/urlerror
+│   ├── NN_uuid/                          # 规划: uuid1/uuid4/uuid5/转字符串
+│   ├── NN_traceback_atexit/              # 规划: format_exc/print_exc + atexit 退出清理
+│   └── NN_copy_warnings/                 # 规划: copy/deepcopy + warnings 控制
 │
 ├── 04_libraries/                         # ═══ 通用三方库(跨领域高频)═══
 │   ├── 01_http/                              # requests/httpx/aiohttp

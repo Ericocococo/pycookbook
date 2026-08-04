@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>③ 连 WebSocket bridge</title>
+    <!--
+      在 02 基础上，连接 LSP bridge（03_step_by_step 里写的那个）。
+
+      这一步只做连接和初始化，还不处理任何 LSP 功能。
+      连上后状态栏变绿，断开变红，5 秒后自动重连。
+
+      新增内容（相比 02）：
+        ★ new WebSocket('ws://127.0.0.1:3001') —— 连 bridge
+        ★ sendRequest()    —— 发 LSP 请求（有 id，等响应）
+        ★ sendNotification —— 发 LSP 通知（无 id，不等响应）
+        ★ initialize → initialized → didOpen 三步握手
+        ★ editor.onDidChangeModelContent → didChange 同步编辑内容
+
+      运行前先启动 bridge：
+        python 02_lsp_bridge_ws.py --serve
+    -->
+    <style>
+        body {
+            margin: 0;
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+        }
+
+        #header {
+            padding: 8px 16px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #header h1 {
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        #status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #editor {
+            width: 100%;
+            height: calc(100vh - 37px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>③ WebSocket 连接</h1>
+    <span id="status" class="disconnected">未连接</span>
+</div>
+<div id="editor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        // 语法高亮（和 02 一样，省略细节）
+        monaco.languages.register({id: 'python'});
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+            keywords: [
+                'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class',
+                'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global',
+                'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return',
+                'try', 'while', 'with', 'yield',
+            ],
+            builtins: [
+                'abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir', 'enumerate', 'filter', 'float',
+                'format', 'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'int', 'isinstance',
+                'issubclass', 'iter', 'len', 'list', 'map', 'max', 'min', 'next', 'object', 'open', 'ord',
+                'pow', 'print', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted',
+                'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip',
+            ],
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+            tokenizer: {
+                root: [
+                    [/@[a-zA-Z_]\w*/, 'tag'], [/#.*$/, 'comment'],
+                    [/"""/, 'string', '@tdq'], [/'''/, 'string', '@tsq'],
+                    [/f"/, 'string', '@fs'], [/"/, 'string', '@dq'], [/'/, 'string', '@sq'],
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@typeKeywords': 'type',
+                            '@default': 'identifier'
+                        }
+                    }],
+                    [/[{}()\[\]]/, '@brackets'], [/[,;]/, 'delimiter'],
+                ],
+                dq: [[/[^\\"]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                sq: [[/[^\\']+/, 'string'], [/\\./, 'string.escape'], [/'/, 'string', '@pop']],
+                tdq: [[/[^"]+/, 'string'], [/"""/, 'string', '@pop'], [/"/, 'string']],
+                tsq: [[/[^']+/, 'string'], [/'''/, 'string', '@pop'], [/'/, 'string']],
+                fs: [[/\{/, {
+                    token: 'delimiter.bracket',
+                    next: '@fe'
+                }], [/[^\\"{]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+                fe: [[/\}/, {token: 'delimiter.bracket', next: '@pop'}], {include: 'root'}],
+            },
+        });
+
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+            value: [
+                'import os',
+                'from pathlib import Path',
+                '',
+                '',
+                'class Student:',
+                '    """学生类"""',
+                '',
+                '    def __init__(self, name: str, score: int) -> None:',
+                '        self.name = name',
+                '        self.score = score',
+                '',
+                '    def passed(self) -> bool:',
+                '        return self.score >= 60',
+                '',
+                '',
+                's = Student("Alice", 85)',
+                'print(f"{s.name} passed: {s.passed()}")',
+                '',
+            ].join('\n'),
+            language: 'python',
+            theme: 'vs-dark',
+            fontSize: 14,
+            minimap: {enabled: false},
+        });
+
+        // ──────────────────────────────────────────
+        // ★ 新增：WebSocket 连接 + LSP 初始化
+        // ──────────────────────────────────────────
+        //
+        // JS 注册回调的两种写法（效果一样，都是"事件来了调函数"）：
+        //
+        //   写法 1：赋值给属性（只能绑一个，再赋就覆盖）
+        //     ws.onopen = () => { ... };
+        //     ws.onmessage = () => { ... };
+        //     ws.onclose = () => { ... };
+        //
+        //   写法 2：传参注册（能绑多个，不覆盖）
+        //     btn.addEventListener('click', () => { ... });
+        //     editor.onDidChangeModelContent(() => { ... });
+        //
+        //   类比 Python:
+        //     写法 1: ws.on_open = lambda: ...     （赋值，只能一个）
+        //     写法 2: btn.bindEvent('click', fn)   （注册，能多个）
+        //
+        const statusEl = document.getElementById('status');
+        let ws = null;
+        let requestId = 0;
+        const pendingRequests = new Map();  // id → {resolve} 等响应回调
+
+        function connectLSP() {
+            ws = new WebSocket('ws://127.0.0.1:3001');
+
+            // WebSocket 三个生命周期事件：
+            //   ws.onopen    连接成功时触发（只触发一次）
+            //   ws.onmessage 每次收到服务端消息时触发（触发多次）
+            //   ws.onclose   连接断开时触发（只触发一次）
+            //
+            // 类比 Python websockets:
+            //   ws.onopen    ≈ connect() 返回时
+            //   ws.onmessage ≈ for msg in ws: （每收到一条）
+            //   ws.onclose   ≈ ws.close() 或对方断开时
+
+            // 写法 1：ws.onopen = 回调函数（赋值给属性）
+            ws.onopen = () => {
+                statusEl.textContent = 'Pyright 已连接';
+                statusEl.className = 'connected';
+
+                // LSP 三步握手：initialize → initialized → didOpen
+                sendRequest('initialize', {
+                    processId: null,
+                    capabilities: {},
+                    rootUri: null,
+                }).then(() => {
+                    sendNotification('initialized', {});
+                    sendNotification('textDocument/didOpen', {
+                        textDocument: {
+                            uri: 'file:///workspace/main.py',
+                            languageId: 'python',
+                            version: 1,
+                            text: editor.getValue(),
+                        },
+                    });
+                });
+            };
+
+            // 写法 1：ws.onmessage = 回调函数
+            // 收到消息：如果有 id，匹配 pending 请求的回调
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if ('id' in data && pendingRequests.has(data.id)) {
+                    pendingRequests.get(data.id).resolve(data.result);
+                    pendingRequests.delete(data.id);
+                }
+                // 下一步（04）才处理诊断推送
+            };
+
+            // 写法 1：ws.onclose = 回调函数
+            // 连接断开 或 连接失败 都会触发（bridge 没启动也会走到这）
+            //
+            // setTimeout(connectLSP, 5000) 不是循环：
+            //   注册一个 5 秒定时器，然后什么都不做（没有代码在跑）。
+            //   5 秒到了浏览器调 connectLSP → 连上就停，没连上 onclose 再触发再注册。
+            //   是事件链，不是 while(true) 轮询。
+            //
+            // 效果：先开页面后开 bridge 也行，页面每 5 秒试一次直到连上。
+            ws.onclose = () => {
+                statusEl.textContent = '未连接（5秒后重试）';
+                statusEl.className = 'disconnected';
+                setTimeout(connectLSP, 5000);
+            };
+        }
+
+        // 发 LSP 请求（有 id，返回 Promise 等响应）
+        function sendRequest(method, params) {
+            const id = ++requestId;
+            return new Promise((resolve) => {
+                pendingRequests.set(id, {resolve});
+                const msg = JSON.stringify({jsonrpc: '2.0', id, method, params});
+                console.log('[请求]', msg);
+                ws.send(msg);
+            });
+        }
+
+        // 发 LSP 通知（无 id，不等响应）
+        function sendNotification(method, params) {
+            const msg = JSON.stringify({jsonrpc: '2.0', method, params});
+            console.log('[通知]', msg);
+            ws.send(msg);
+        }
+
+        // 写法 2：editor.onDidChangeModelContent(回调函数)（传参注册）
+        // 编辑器内容变更时，通知 Pyright 同步
+        //
+        // Q: 为什么先注册回调，后面才 connectLSP()？
+        // A: 注册只是"存起来"，不会立刻执行。实际执行顺序：
+        //   1. onDidChangeModelContent(fn)  ← 注册（fn 存起来，不执行）
+        //   2. connectLSP()                 ← 连接 WebSocket
+        //   3. ... 用户开始打字 ...
+        //   4. fn()                         ← 这时才执行，ws 早连好了
+        //   先注册更安全：万一连接极快触发了变化，回调已就位不会漏。
+        //
+        let version = 1;
+        editor.onDidChangeModelContent(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            version++;
+            sendNotification('textDocument/didChange', {
+                textDocument: {uri: 'file:///workspace/main.py', version},
+                contentChanges: [{text: editor.getValue()}],
+            });
+        });
+
+        connectLSP();
+    });
+
+</script>
+</body>
+</html>
