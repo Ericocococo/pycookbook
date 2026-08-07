@@ -48,6 +48,7 @@ pip install -e ".[ai]"           # 09_ai:        scikit-learn/transformers...
 | [`08_data/`](08_data/) | 数据: 分析/可视化/工程/爬虫/存储 |
 | [`09_ai/`](09_ai/) | AI: ml/dl/rl/推荐/nlp/cv/llm/agent/mlops |
 | [`10_ops/`](10_ops/) | 工程化横切(纯工程活动): 测试/质量/打包/容器/CI/可观测/安全 |
+| [`11_projects/`](11_projects/) | 项目实战: 端到端完整项目,配方学零件、项目学组装 |
 
 > 目录一律带两位序号前缀(`01_ 02_ ...`),**阅读顺序即学习/工程顺序**。
 
