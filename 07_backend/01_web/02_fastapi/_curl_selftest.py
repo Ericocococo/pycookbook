@@ -45,7 +45,7 @@ def wait_port(host, port, timeout=15.0):
     while time.monotonic() < deadline:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(0.5)
-            if s.connect_ex((host, port)) == 0:   # 0 = 连接成功
+            if s.connect_ex((host, port)) == 0:  # 0 = 连接成功
                 return True
         time.sleep(0.2)
     raise TimeoutError(f"等待 {host}:{port} 启动超时({timeout}s)")
@@ -57,9 +57,9 @@ def _build_curl_args(base, case):
     url = base + case["path"]
     # -s 静默进度; -w 在响应体后追加状态码标记,便于把状态码和响应体分开
     args = ["-s", "-w", "\nCURL_HTTP_STATUS:%{http_code}", "-X", method, url]
-    if case.get("show_headers"):           # -i:把响应头也打印出来
+    if case.get("show_headers"):  # -i:把响应头也打印出来
         args.append("-i")
-    if "json" in case:                     # 发送 JSON 请求体
+    if "json" in case:  # 发送 JSON 请求体
         args += ["-H", "Content-Type: application/json",
                  "-d", _json.dumps(case["json"], ensure_ascii=False)]
     for k, v in case.get("headers", {}).items():
@@ -87,7 +87,7 @@ def run_curls(host, port, cases):
     for i, case in enumerate(cases, 1):
         print("-" * 60)
         print(f"【curl 用例 {i}】{case.get('desc', '')}")
-        print("$", _pretty_cmd(base, case))          # 展示等价命令,可手动复制
+        print("$", _pretty_cmd(base, case))  # 展示等价命令,可手动复制
         out = subprocess.run(
             ["curl", *_build_curl_args(base, case)],
             capture_output=True, text=True, encoding="utf-8",

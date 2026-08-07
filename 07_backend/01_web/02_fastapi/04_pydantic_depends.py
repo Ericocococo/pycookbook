@@ -27,9 +27,9 @@ PORT = 8024
 app = FastAPI()
 
 
-class User(BaseModel):                 # ① Pydantic 模型 = 请求体结构 + 校验规则
+class User(BaseModel):  # ① Pydantic 模型 = 请求体结构 + 校验规则
     name: str
-    age: int = Field(gt=0, le=150)     # ② 约束:0 < age <= 150,越界自动 422
+    age: int = Field(gt=0, le=150)  # ② 约束:0 < age <= 150,越界自动 422
 
 
 @app.post("/user", status_code=201)
@@ -60,9 +60,9 @@ CURL_CASES = [
     {"desc": "依赖注入:token 错误 → 401", "path": "/secure?token=wrong"},
 ]
 
-
 if __name__ == "__main__":
     import argparse
+
     _ap = argparse.ArgumentParser()
     _ap.add_argument("--serve", action="store_true",
                      help="阻塞启动服务，供手动 curl / IDE 断点调试")
@@ -70,4 +70,5 @@ if __name__ == "__main__":
         uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
     else:
         from _curl_selftest import run_selftest
+
         run_selftest(__file__, "127.0.0.1", PORT, CURL_CASES)

@@ -57,9 +57,9 @@ CURL_CASES = [
      "method": "POST", "path": "/created"},
 ]
 
-
 if __name__ == "__main__":
     import argparse
+
     _ap = argparse.ArgumentParser()
     _ap.add_argument("--serve", action="store_true",
                      help="阻塞启动服务，供手动 curl / IDE 断点调试")
@@ -67,4 +67,5 @@ if __name__ == "__main__":
         uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
     else:
         from _curl_selftest import run_selftest
+
         run_selftest(__file__, "127.0.0.1", PORT, CURL_CASES)

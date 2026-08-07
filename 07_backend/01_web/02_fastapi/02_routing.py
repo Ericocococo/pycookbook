@@ -28,7 +28,7 @@ app = FastAPI()
 USERS = {1: {"id": 1, "name": "张三"}, 2: {"id": 2, "name": "李四"}}
 
 
-@app.get("/user/{uid}")                # ① {uid} + 注解 int → 路径参数
+@app.get("/user/{uid}")  # ① {uid} + 注解 int → 路径参数
 async def get_user(uid: int):
     if uid not in USERS:
         # HTTPException 会被 FastAPI 转成对应状态码的 JSON
@@ -42,7 +42,7 @@ async def list_users(limit: int = 10):  # ② limit 不在路径 + 有默认值 
     return {"count": len(items), "limit": limit, "items": items}
 
 
-@app.post("/user", status_code=201)     # ③ POST,并指定成功状态码 201
+@app.post("/user", status_code=201)  # ③ POST,并指定成功状态码 201
 async def create_user():
     new_id = max(USERS) + 1 if USERS else 1
     USERS[new_id] = {"id": new_id, "name": f"用户{new_id}"}
@@ -75,9 +75,9 @@ CURL_CASES = [
     {"desc": "DELETE 删除", "method": "DELETE", "path": "/user/2"},
 ]
 
-
 if __name__ == "__main__":
     import argparse
+
     _ap = argparse.ArgumentParser()
     _ap.add_argument("--serve", action="store_true",
                      help="阻塞启动服务，供手动 curl / IDE 断点调试")
@@ -85,4 +85,5 @@ if __name__ == "__main__":
         uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
     else:
         from _curl_selftest import run_selftest
+
         run_selftest(__file__, "127.0.0.1", PORT, CURL_CASES)
