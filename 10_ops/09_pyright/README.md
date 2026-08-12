@@ -5,14 +5,13 @@
 
 ## 1. 文件说明
 
-| 文件 | 内容 | 运行方式 |
-|------|------|----------|
-| [01_config.py](01_config.py) | Pyright 配置与检查等级 | `pyright 01_config.py` |
-| [02_stub.py](02_stub.py) | .pyi 桩文件、typeshed、--verifytypes | `pyright 02_stub.py` |
-| [03_step_by_step/](03_step_by_step/) | LSP 协议从零拆解（管道→消息→初始化→补全→WebSocket→桥接） | 按目录内序号逐个运行 |
-| [04_monaco_lsp/](04_monaco_lsp/) | Monaco Editor + LSP bridge 前端集成 | `cd 04_monaco_lsp && python 01_http_server.py --serve` |
-| [05_enterprise.md](05_enterprise.md) | 企业级：CI/CD、增量接入、Monorepo、性能调优 | 直接阅读 |
-| [pyrightconfig.json](pyrightconfig.json) | 项目级 Pyright 配置 | 自动生效 |
+### 学习路线：三步递进
+
+| 目录 | 主题 | 内容 |
+|------|------|------|
+| [01_lsp_basics/](01_lsp_basics/) | LSP 协议学习（后端视角） | 管道→消息→初始化→补全→WebSocket→桥接 |
+| [02_monaco_basics/](02_monaco_basics/) | 前端基础学习 | HTML/CSS/JS → Monaco Editor 集成 |
+| [03_lsp_server/](03_lsp_server/) | 完整 LSP 服务 | server + bridge + client + 前端模板，综合项目 |
 
 ## 2. 适用 / 不适用
 
@@ -240,8 +239,6 @@ JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | 
 
 ## 10. 类型 Stub 管理
 
-[02_stub.py](02_stub.py) 详细演示。
-
 ### 10.1 .pyi 桩文件
 
 `mylib.pyi` —— 只有类型声明，没有实现体：
@@ -285,19 +282,7 @@ pyright --verifytypes mypackage
 Python 3.9+ 推荐用 `list[int]` 而非 `typing.List[int]`，
 开启后使用旧别名会报 warning。
 
-## 11. 企业级实践
-
-详见 [05_enterprise.md](05_enterprise.md)，覆盖：
-
-| 场景 | 关键内容 |
-|------|---------|
-| **CI/CD 集成** | GitHub Actions、GitLab CI、pre-commit、增量 CI |
-| **大型项目增量接入** | 四阶段方案、executionEnvironments 逐目录渗透 |
-| **Monorepo 配置** | 多包独立配置、共享类型、extraPaths |
-| **性能调优** | exclude、多线程、stats 诊断、缓存 |
-| **Pyright + Mypy 双检** | 双检 CI 配置、各自优势互补 |
-
-## 12. 与其他工具的关系
+## 11. 与其他工具的关系
 
 ```
 ruff        ← 代码格式 + 简单 lint（不检查类型）

@@ -52,11 +52,11 @@ pip install websockets fastapi uvicorn
 npm install -g pyright
 
 # 终端 1：启动 LSP 桥接（二选一）
-python 10_ops/09_pyright/04_monaco_lsp/02_lsp_bridge_ws.py --serve      # websockets 方案
-python 10_ops/09_pyright/04_monaco_lsp/03_lsp_bridge_fastapi.py --serve  # FastAPI 方案
+python 10_ops/09_pyright/03_lsp_server/02_lsp_bridge_ws.py --serve      # websockets 方案
+python 10_ops/09_pyright/03_lsp_server/03_lsp_bridge_fastapi.py --serve  # FastAPI 方案
 
-# 终端 2：启动前端页面（同事的）
-python 10_ops/09_pyright/04_monaco_lsp/01_http_server.py --serve
+# 终端 2：启动前端页面
+python 10_ops/09_pyright/03_lsp_server/01_http_server.py --serve
 
 # 浏览器打开 http://127.0.0.1:8080
 # 前端 HTML 里默认连 websockets 方案，切换方式见里面的注释
@@ -85,7 +85,7 @@ Monaco 编辑器                你的 LSP 桥接                 Pyright
 
 ### 方案 A：服务端拦截注入（动态）
 
-02_lsp_bridge.py 中拦截 Pyright 的补全响应，追加自定义项：
+02_lsp_bridge_ws.py 中拦截 Pyright 的补全响应，追加自定义项：
 
 ```python
 CUSTOM_COMPLETIONS = [
