@@ -23,13 +23,16 @@ import websockets
 # 示例代码内容
 # ──────────────────────────────────────────
 SAMPLE_CODE = '''
-def add(a: int, b: int) -> int:
-    return a + b
+from interface import ntdata, nttrader, nttype, ntconstant
 
-x = add(3, 4)
-print(x.)
+account = nttype.StockAccount("backtest")
 
-y: str = 42
+ntdata.
+ntconstant.
+account.
+ntdata.get_market_data_ex
+
+bad: int = "hello"
 '''
 
 
@@ -111,8 +114,8 @@ class LSPClient:
 
 async def main():
     # 连接 WebSocket（两个方案二选一）
-    ws_url = "ws://127.0.0.1:3001"        # 方案一：websockets
-    # ws_url = "ws://127.0.0.1:3002/lsp"  # 方案二：FastAPI
+    # ws_url = "ws://127.0.0.1:3001"        # 方案一：websockets
+    ws_url = "ws://127.0.0.1:3002/lsp"  # 方案二：FastAPI
 
     async with websockets.connect(ws_url) as ws:
         client = LSPClient(ws)
@@ -120,15 +123,15 @@ async def main():
         # ① 初始化
         await client.initialize()
 
-        # ② 打开文档
-        uri = "file:///demo.py"
+        # ② 打开文档（使用虚拟路径，桥接层会重写为真实路径）
+        uri = "file:///workspace/main.py"
         await client.open_document(uri, SAMPLE_CODE)
         print("\n等待诊断结果...")
         await asyncio.sleep(1)
 
-        # ③ 请求补全（光标在 print(x.) 的 . 后面）
-        print("\n请求补全（print(x. 的位置）...")
-        items = await client.completion(uri, line=5, char=8)
+        # ③ 请求补全（光标在 "ntdata." 的点后面，第 5 行）
+        print("\n请求补全（ntdata. 的位置）...")
+        items = await client.completion(uri, line=5, char=7)
         for item in items[:5]:
             label = item["label"]
             detail = item.get("detail", "")
@@ -136,9 +139,9 @@ async def main():
         if items:
             print(f"  ... 共 {len(items)} 项")
 
-        # ④ 请求悬浮文档（光标在 add 上）
-        print("\n请求悬浮文档（add 函数）...")
-        hover = await client.hover(uri, line=1, char=4)
+        # ④ 请求悬浮文档（光标在 "ntdata.get_market_data_ex" 上，第 8 行）
+        print("\n请求悬浮文档（get_market_data_ex）...")
+        hover = await client.hover(uri, line=8, char=12)
         if hover and "contents" in hover:
             value = hover["contents"]
             if isinstance(value, dict):

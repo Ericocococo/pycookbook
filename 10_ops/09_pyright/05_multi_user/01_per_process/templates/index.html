@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>阶段1：一连接一进程</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #ccc;
+            font-family: system-ui;
+        }
+
+        #header {
+            padding: 10px 20px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        #header h1 {
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        #status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .connected {
+            background: #2d5a2d;
+            color: #6fc66f;
+        }
+
+        .disconnected {
+            background: #5a2d2d;
+            color: #c66f6f;
+        }
+
+        #stage-select {
+            font-size: 12px;
+            padding: 2px 6px;
+            background: #3c3c3c;
+            color: #ccc;
+            border: 1px solid #555;
+            border-radius: 3px;
+        }
+
+        #session-id {
+            font-size: 11px;
+            color: #888;
+        }
+
+        #editor {
+            width: 100%;
+            height: calc(100vh - 41px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>阶段1：一连接一进程 (3001)</h1>
+    <span id="status" class="disconnected">未连接</span>
+    <span id="session-id"></span>
+</div>
+<div id="editor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    require.config({
+        paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}
+    });
+
+    require(['vs/editor/editor.main'], function () {
+
+        // 注册 Python 语言
+        monaco.languages.register({id: 'python'});
+        monaco.languages.setMonarchTokensProvider('python', {
+            defaultToken: '',
+            keywords: [
+                'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+                'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+                'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+                'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return',
+                'try', 'while', 'with', 'yield',
+            ],
+            builtins: [
+                'abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir', 'enumerate',
+                'filter', 'float', 'format', 'getattr', 'hasattr', 'hash', 'hex',
+                'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len',
+                'list', 'map', 'max', 'min', 'next', 'object', 'open', 'ord',
+                'pow', 'print', 'range', 'repr', 'reversed', 'round', 'set',
+                'setattr', 'slice', 'sorted', 'str', 'sum', 'super', 'tuple',
+                'type', 'vars', 'zip',
+            ],
+            typeKeywords: ['int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'None'],
+            operators: [
+                '=', '>', '<', '!', '~', '?', ':', '==', '<=', '>=', '!=',
+                '&&', '||', '++', '--', '+', '-', '*', '/', '&', '|', '^', '%',
+                '<<', '>>', '>>>', '+=', '-=', '*=', '/=',
+            ],
+            symbols: /[=><!~?:&|+\-*\/\^%]+/,
+            escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+            tokenizer: {
+                root: [
+                    [/@[a-zA-Z_]\w*/, 'tag'],
+                    [/#.*$/, 'comment'],
+                    [/"""/, 'string', '@string_triple_double'],
+                    [/'''/, 'string', '@string_triple_single'],
+                    [/f"/, 'string', '@fstring_double'],
+                    [/f'/, 'string', '@fstring_single'],
+                    [/"([^"\\]|\\.)*$/, 'string.invalid'],
+                    [/'([^'\\]|\\.)*$/, 'string.invalid'],
+                    [/"/, 'string', '@string_double'],
+                    [/'/, 'string', '@string_single'],
+                    [/\b0[xX][0-9a-fA-F]+\b/, 'number.hex'],
+                    [/\b0[oO][0-7]+\b/, 'number.octal'],
+                    [/\b0[bB][01]+\b/, 'number.binary'],
+                    [/\b\d+(\.\d+)?([eE][+-]?\d+)?\b/, 'number'],
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@typeKeywords': 'type',
+                            '@default': 'identifier',
+                        }
+                    }],
+                    [/@symbols/, {cases: {'@operators': 'operator', '@default': ''}}],
+                    [/[{}()\[\]]/, '@brackets'],
+                    [/[,;]/, 'delimiter'],
+                ],
+                string_double: [[/[^\\"]+/, 'string'], [/@escapes/, 'string.escape'], [/\\./, 'string.escape.invalid'], [/"/, 'string', '@pop']],
+                string_single: [[/[^\\']+/, 'string'], [/@escapes/, 'string.escape'], [/\\./, 'string.escape.invalid'], [/'/, 'string', '@pop']],
+                string_triple_double: [[/[^"]+/, 'string'], [/"""/, 'string', '@pop'], [/"/, 'string']],
+                string_triple_single: [[/[^']+/, 'string'], [/'''/, 'string', '@pop'], [/'/, 'string']],
+                fstring_double: [[/\{/, {
+                    token: 'delimiter.bracket',
+                    next: '@fstring_expr'
+                }], [/[^\\"{]+/, 'string'], [/@escapes/, 'string.escape'], [/"/, 'string', '@pop']],
+                fstring_single: [[/\{/, {
+                    token: 'delimiter.bracket',
+                    next: '@fstring_expr'
+                }], [/[^\\'{]+/, 'string'], [/@escapes/, 'string.escape'], [/'/, 'string', '@pop']],
+                fstring_expr: [[/\}/, {token: 'delimiter.bracket', next: '@pop'}], {include: 'root'}],
+            },
+        });
+
+        // 创建编辑器
+        const SAMPLE_CODE = [
+            'from interface import ntdata, nttrader, nttype, ntconstant',
+            '',
+            'account = nttype.StockAccount("backtest")',
+            '',
+            '# ① 在下面这行末尾输入一个点(.)，弹出行情函数补全',
+            'ntdata.',
+            '',
+            '# ② 在下面这行末尾输入一个点(.)，弹出常量补全（STOCK_BUY 等）',
+            'ntconstant.',
+            '',
+            '# ③ 在下面这行末尾输入一个点(.)，弹出 StockAccount 属性',
+            'account.',
+            '',
+            '# ④ 鼠标悬停下面的 get_market_data_ex → 显示函数签名和文档',
+            'ntdata.get_market_data_ex',
+            '',
+            '# ⑤ 故意写错：str 赋给 int，Pyright 会标红',
+            'bad: int = "hello"',
+            '',
+        ].join('\n');
+
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+            value: SAMPLE_CODE, language: 'python', theme: 'vs-dark',
+            fontSize: 14, minimap: {enabled: false}, automaticLayout: true,
+            folding: true, suggest: {showMethods: true, showFunctions: true},
+            quickSuggestions: true,
+        });
+
+        // ──── WebSocket 连接 + LSP ────
+        const statusEl = document.getElementById('status');
+        const sessionEl = document.getElementById('session-id');
+        let ws = null;
+        let requestId = 0;
+        const pendingRequests = new Map();
+
+        function connectLSP() {
+            // 断开旧连接
+            if (ws) {
+                ws.onclose = null;
+                ws.close();
+            }
+
+            const wsUrl = 'ws://127.0.0.1:3001/lsp';
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                statusEl.textContent = 'Pyright 已连接';
+                statusEl.className = 'connected';
+                sessionEl.textContent = wsUrl;
+
+                sendRequest('initialize', {
+                    processId: null,
+                    capabilities: {
+                        textDocument: {
+                            completion: {completionItem: {snippetSupport: true}},
+                            hover: {contentFormat: ['markdown', 'plaintext']},
+                            publishDiagnostics: {relatedInformation: true},
+                        },
+                    },
+                    rootUri: null,
+                }).then(() => {
+                    sendNotification('initialized', {});
+                    sendNotification('textDocument/didOpen', {
+                        textDocument: {
+                            uri: 'file:///workspace/main.py',
+                            languageId: 'python', version: 1,
+                            text: editor.getValue(),
+                        },
+                    });
+                });
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if ('id' in data && pendingRequests.has(data.id)) {
+                    pendingRequests.get(data.id).resolve(data.result);
+                    pendingRequests.delete(data.id);
+                }
+                if (data.method === 'textDocument/publishDiagnostics') {
+                    const diagnostics = data.params.diagnostics.map(d => ({
+                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error
+                            : d.severity === 2 ? monaco.MarkerSeverity.Warning
+                                : monaco.MarkerSeverity.Info,
+                        startLineNumber: d.range.start.line + 1,
+                        startColumn: d.range.start.character + 1,
+                        endLineNumber: d.range.end.line + 1,
+                        endColumn: d.range.end.character + 1,
+                        message: d.message, source: d.source || 'Pyright',
+                    }));
+                    monaco.editor.setModelMarkers(editor.getModel(), 'pyright', diagnostics);
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = '未连接（5秒后重试）';
+                statusEl.className = 'disconnected';
+                monaco.editor.setModelMarkers(editor.getModel(), 'pyright', []);
+                setTimeout(connectLSP, 5000);
+            };
+        }
+
+        function sendRequest(method, params) {
+            const id = ++requestId;
+            return new Promise((resolve) => {
+                pendingRequests.set(id, {resolve});
+                ws.send(JSON.stringify({jsonrpc: '2.0', id, method, params}));
+            });
+        }
+
+        function sendNotification(method, params) {
+            ws.send(JSON.stringify({jsonrpc: '2.0', method, params}));
+        }
+
+        // 编辑器内容变更通知
+        let version = 1;
+        editor.onDidChangeModelContent(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            version++;
+            sendNotification('textDocument/didChange', {
+                textDocument: {uri: 'file:///workspace/main.py', version},
+                contentChanges: [{text: editor.getValue()}],
+            });
+        });
+
+        // 补全
+        monaco.languages.registerCompletionItemProvider('python', {
+            triggerCharacters: ['.', ' '],
+            provideCompletionItems: async (model, position) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return {suggestions: []};
+                const result = await sendRequest('textDocument/completion', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+                if (!result || !result.items) return {suggestions: []};
+                return {
+                    suggestions: result.items.map(item => ({
+                        label: item.label,
+                        kind: item.kind || monaco.languages.CompletionItemKind.Function,
+                        sortText: item.sortText || item.label,
+                        detail: item.detail || '',
+                        documentation: item.documentation,
+                        insertText: item.insertText || item.label,
+                    })),
+                };
+            },
+        });
+
+        // 悬浮文档
+        monaco.languages.registerHoverProvider('python', {
+            provideHover: async (model, position) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return null;
+                const result = await sendRequest('textDocument/hover', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+                if (!result || !result.contents) return null;
+                const value = typeof result.contents === 'string'
+                    ? result.contents : result.contents.value || '';
+                return {
+                    contents: [{value}],
+                    range: result.range ? new monaco.Range(
+                        result.range.start.line + 1, result.range.start.character + 1,
+                        result.range.end.line + 1, result.range.end.character + 1,
+                    ) : undefined,
+                };
+            },
+        });
+
+        // 参数提示（输入 ( 或 , 时触发）
+        monaco.languages.registerSignatureHelpProvider('python', {
+            signatureHelpTriggerCharacters: ['(', ','],
+            provideSignatureHelp: async (model, position) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return null;
+                const result = await sendRequest('textDocument/signatureHelp', {
+                    textDocument: {uri: 'file:///workspace/main.py'},
+                    position: {line: position.lineNumber - 1, character: position.column - 1},
+                });
+                if (!result || !result.signatures) return null;
+                return {
+                    value: result,
+                    dispose: () => {},
+                };
+            },
+        });
+
+        connectLSP();
+    });
+
+</script>
+</body>
+</html>

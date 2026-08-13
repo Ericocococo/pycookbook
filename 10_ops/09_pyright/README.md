@@ -12,6 +12,8 @@
 | [01_lsp_basics/](01_lsp_basics/) | LSP 协议学习（后端视角） | 管道→消息→初始化→补全→WebSocket→桥接 |
 | [02_monaco_basics/](02_monaco_basics/) | 前端基础学习 | HTML/CSS/JS → Monaco Editor 集成 |
 | [03_lsp_server/](03_lsp_server/) | 完整 LSP 服务 | server + bridge + client + 前端模板，综合项目 |
+| [04_monaco_lsp/](04_monaco_lsp/) | Monaco + Pyright 完整 Demo | HTTP 页面 + WS 桥接 + 补全/诊断/悬浮，浏览器跑通闭环 |
+| [05_multi_user/](05_multi_user/) | 多用户架构对比 | 一连接一进程 → 共享 Pyright → 进程池，三种方案渐进演示 |
 
 ## 2. 适用 / 不适用
 

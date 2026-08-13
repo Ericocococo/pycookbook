@@ -5,8 +5,8 @@ Pyright LSP WebSocket 桥接服务 —— websockets 方案
 
 职责：
   - WebSocket 接收前端 Monaco Editor 的 LSP 请求
+  - 注入 rootUri，让 Pyright 能找到 interface 包提供补全
   - 转发给 pyright-langserver 子进程
-  - 拦截补全响应，注入自定义函数
   - 将 Pyright 响应回传给前端
 
 前端同事连接：
@@ -26,8 +26,31 @@ import json
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import websockets
+
+_DIR = Path(__file__).resolve().parent
+
+
+# ──────────────────────────────────────────
+# 工作区路径——让 Pyright 能找到 interface 包
+# ──────────────────────────────────────────
+# 前端用虚拟 URI（file:///workspace/main.py），桥接层替换成磁盘真实路径再转发给 Pyright，
+# Pyright 响应回来再替换回虚拟路径。这样 Pyright 看到文件与 interface/ 同级，能正确解析 import。
+_WORKSPACE_URI = f"file:///{_DIR.as_posix()}"
+_VIRTUAL_PREFIX = "file:///workspace/"
+_REAL_PREFIX = _WORKSPACE_URI + "/"
+
+
+def _rewrite_to_real(text: str) -> str:
+    """前端虚拟路径 → 磁盘真实路径"""
+    return text.replace(_VIRTUAL_PREFIX, _REAL_PREFIX)
+
+
+def _rewrite_to_virtual(text: str) -> str:
+    """磁盘真实路径 → 前端虚拟路径"""
+    return text.replace(_REAL_PREFIX, _VIRTUAL_PREFIX)
 
 
 # ──────────────────────────────────────────
@@ -43,43 +66,6 @@ def _find_langserver() -> str:
 
 
 _LANGSERVER = _find_langserver()
-
-
-# ──────────────────────────────────────────
-# 自定义补全项
-# ──────────────────────────────────────────
-CUSTOM_COMPLETIONS = [
-    {
-        "label": "query_stock",
-        "kind": 3,
-        "sortText": "00.0000.query_stock",
-        "detail": "(code: str, start: str, end: str) -> DataFrame",
-        "documentation": {
-            "kind": "markdown",
-            "value": (
-                "查询股票行情数据\n\n"
-                "```python\n"
-                "df = query_stock('000001', '2024-01-01', '2024-12-31')\n"
-                "```"
-            ),
-        },
-    },
-    {
-        "label": "calc_ma",
-        "kind": 3,
-        "sortText": "00.0000.calc_ma",
-        "detail": "(df: DataFrame, window: int = 20) -> Series",
-        "documentation": {
-            "kind": "markdown",
-            "value": (
-                "计算移动平均线\n\n"
-                "```python\n"
-                "ma20 = calc_ma(df, window=20)\n"
-                "```"
-            ),
-        },
-    },
-]
 
 
 # ──────────────────────────────────────────
@@ -123,29 +109,33 @@ async def lsp_handler(ws) -> None:
     loop = asyncio.get_event_loop()
 
     async def ws_to_pyright():
-        """前端 → Pyright"""
+        """前端 → Pyright（注入 rootUri，重写虚拟路径为真实路径）"""
         async for message in ws:
-            data = message if isinstance(message, str) else message.decode()
-            _write_lsp_message(pyright.stdin, data.encode())
+            text = message if isinstance(message, str) else message.decode()
+            # 虚拟路径 → 磁盘真实路径
+            text = _rewrite_to_real(text)
+            # 拦截 initialize，注入 rootUri 让 Pyright 能找到 interface 包
+            try:
+                msg = json.loads(text)
+                if msg.get("method") == "initialize":
+                    msg.setdefault("params", {})
+                    msg["params"]["rootUri"] = _WORKSPACE_URI
+                    text = json.dumps(msg, ensure_ascii=False)
+            except (json.JSONDecodeError, KeyError):
+                pass
+            _write_lsp_message(pyright.stdin, text.encode())
 
     async def pyright_to_ws():
-        """Pyright → 前端（拦截补全响应，注入自定义项）"""
+        """Pyright → 前端（回写虚拟路径）"""
         while True:
             body = await loop.run_in_executor(
                 None, _read_lsp_message, pyright.stdout
             )
             if body is None:
                 break
-            data = json.loads(body)
-
-            # 拦截补全响应，注入自定义函数，按 sortText 排序
-            if "result" in data and isinstance(data.get("result"), dict):
-                items = data["result"].get("items")
-                if items is not None:
-                    items.extend(CUSTOM_COMPLETIONS)
-                    items.sort(key=lambda i: i.get("sortText", "99"))
-
-            await ws.send(json.dumps(data, ensure_ascii=False))
+            # 磁盘真实路径 → 虚拟路径
+            text = _rewrite_to_virtual(body.decode())
+            await ws.send(text)
 
     try:
         await asyncio.gather(ws_to_pyright(), pyright_to_ws())

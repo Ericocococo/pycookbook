@@ -1,0 +1,236 @@
+#coding=utf-8
+
+"""
+常量定义模块（来自牛股王 ntquant）。
+"""
+
+
+
+"""
+账号类型（文档提及：SECURITY_ACCOUNT）
+"""
+# 期货 -- 文档未提及
+# FUTURE_ACCOUNT = 1
+# 股票
+SECURITY_ACCOUNT = 2
+# 信用 -- 文档未直接提及
+# CREDIT_ACCOUNT = 3
+# 期货期权 -- 文档未提及
+# FUTURE_OPTION_ACCOUNT = 5
+# 股票期权 -- 文档未提及
+# STOCK_OPTION_ACCOUNT = 6
+# 沪港通 -- 文档未提及
+# HUGANGTONG_ACCOUNT = 7
+# 美股收益互换 -- 文档未提及
+# INCOME_SWAP_ACCOUNT = 8
+# 全国股转 -- 文档未提及
+# NEW3BOARD_ACCOUNT = 10
+# 深港通 -- 文档未提及
+# SHENGANGTONG_ACCOUNT = 11
+# 场外理财 -- 文档未提及
+# AT_OFFSITEBANKING = 13
+# AT_OUTTER_FUTURE = 1001
+# AT_IB = 1002
+# AT_NS_TRUSTBANK = 15001
+# AT_INTERBANK = 15002
+# AT_BANK = 15003
+# AT_OTC = 15005
+
+# StockAccount 内部使用，保留
+ACCOUNT_TYPE_DICT = {
+    SECURITY_ACCOUNT: 'STOCK',
+    # 文档未提及的账号类型已注释：
+    # 3: 'CREDIT',
+    # 1: 'FUTURE',
+    # 5: 'FUTURE_OPTION',
+    # 6: 'STOCK_OPTION',
+    # 7: 'HUGANGTONG',
+    # 11: 'SHENGANGTONG',
+    # 10: 'NEW3BOARD',
+    # 8: 'INCOME_SWAP',
+    # 13: 'OFFSITEBANKING',
+    # 1001: 'OUTTER_FUTURE',
+    # 1002: 'IB',
+    # 15001: 'NS_TRUSTBANK',
+    # 15002: 'INTERBANK',
+    # 15003: 'BANK',
+    # 15005: 'OTC',
+}
+
+
+"""
+委托类型（文档提及：STOCK_BUY, STOCK_SELL, ETF_PURCHASE, ETF_REDEMPTION）
+"""
+# 期货/期权/组合/信用等委托类型文档未提及，已注释：
+# FUTURE_OPEN_LONG = 0 ... FUTURE_RENEW_SHORT_CLOSE_TODAY_FIRST = 22
+# STOCK_OPTION_BUY_OPEN = 48 ... STOCK_OPTION_SECU_UNLOCK = 57
+# OPTION_FUTURE_OPTION_EXERCISE = 100
+# COMPOSE_OPEN_LONG = 110 ... COMPOSE_FUTURE_ADJUST_HISTORY_FIRST = 119
+# COMPOSE_OPTION_COMB_EXERCISE = 137 ... COMPOSE_OPTION_RELEASE_COMB_STRATEGY = 139
+# FUTURE_HEDGE = 400
+
+# ETF申赎
+ETF_PURCHASE = 134  # 申购
+ETF_REDEMPTION = 135  # 赎回
+
+STOCK_BUY = 23
+STOCK_SELL = 24
+# 信用委托类型文档未提及，已注释：
+# CREDIT_BUY = 23 ... CREDIT_DIRECT_CASH_REPAY_SPECIAL = 45
+# ORDER_TYPE_SET 文档未提及，已注释
+
+"""
+报价类型（文档提及：FIX_PRICE 推荐，LATEST_PRICE 及市价类型也可用）
+"""
+# 最新价
+LATEST_PRICE = 5
+# 指定价/限价（文档推荐）
+FIX_PRICE = 11
+# 期货市价类型文档未提及，已注释：
+# MARKET_BEST = 18 ... MARKET_CONVERT_5 = 24
+# 以下为 A 股可用的市价类型（文档列出但仅供查看，实盘建议仅用 FIX_PRICE）
+# 最优五档即时成交剩余撤销[上交所][北交所][股票]
+MARKET_SH_CONVERT_5_CANCEL = 42
+# 最优五档即时成交剩转限价[上交所][北交所][股票]
+MARKET_SH_CONVERT_5_LIMIT = 43
+# 对手方最优价格委托
+MARKET_PEER_PRICE_FIRST = 44
+# 本方最优价格委托
+MARKET_MINE_PRICE_FIRST = 45
+# 即时成交剩余撤销委托[深交所]
+MARKET_SZ_INSTBUSI_RESTCANCEL = 46
+# 最优五档即时成交剩余撤销[深交所]
+MARKET_SZ_CONVERT_5_CANCEL = 47
+# 全额成交或撤销委托[深交所]
+MARKET_SZ_FULL_OR_CANCEL = 48
+
+
+"""
+市场类型（文档提及：SH_MARKET, SZ_MARKET）
+"""
+# 上海市场
+SH_MARKET = 0
+# 深圳市场
+SZ_MARKET = 1
+# 以下市场枚举文档未提及，已注释：
+# MARKET_ENUM_BEIJING = 70
+# MARKET_ENUM_SHANGHAI_FUTURE = 3
+# MARKET_ENUM_DALIANG_FUTURE = 4
+# MARKET_ENUM_ZHENGZHOU_FUTURE = 5
+# MARKET_ENUM_INDEX_FUTURE = 2
+# MARKET_ENUM_INTL_ENERGY_FUTURE = 6
+# MARKET_ENUM_GUANGZHOU_FUTURE = 75
+# MARKET_ENUM_SHANGHAI_STOCK_OPTION = 7
+# MARKET_ENUM_SHENZHEN_STOCK_OPTION = 67
+
+"""
+市场类型-字符串（文档提及：SH, SZ, BJ）
+"""
+# 上交所
+MARKET_SHANGHAI = 'SH'
+# 深交所
+MARKET_SHENZHEN = 'SZ'
+# 北交所
+MARKET_BEIJING = 'BJ'
+# 以下市场字符串文档未提及，已注释：
+# MARKET_SHANGHAI_FUTURE = 'SF'
+# MARKET_DALIANG_FUTURE = 'DF'
+# MARKET_ZHENGZHOU_FUTURE = 'ZF'
+# MARKET_INDEX_FUTURE = 'IF'
+# MARKET_INTL_ENERGY_FUTURE = 'INE'
+# MARKET_GUANGZHOU_FUTURE = 'GF'
+# MARKET_SHANGHAI_STOCK_OPTION = 'SHO'
+# MARKET_SHENZHEN_STOCK_OPTION = 'SZO'
+
+MARKET_STR_TO_ENUM_MAPPING = {
+    MARKET_SHANGHAI: SH_MARKET,
+    MARKET_SHENZHEN: SZ_MARKET,
+    # 文档未提及的市场已注释：
+    # MARKET_BEIJING: 70,
+    # 'SF': 3, 'DF': 4, 'ZF': 5, 'IF': 2, 'INE': 6, 'GF': 75, 'SHO': 7, 'SZO': 67,
+}
+
+
+"""
+委托状态
+"""
+# 未报
+ORDER_UNREPORTED = 48
+# 待报
+ORDER_WAIT_REPORTING = 49
+# 已报
+ORDER_REPORTED = 50
+# 已报待撤
+ORDER_REPORTED_CANCEL = 51
+# 部成待撤
+ORDER_PARTSUCC_CANCEL = 52
+# 部撤
+ORDER_PART_CANCEL = 53
+# 已撤
+ORDER_CANCELED = 54
+# 部成
+ORDER_PART_SUCC = 55
+# 已成
+ORDER_SUCCEEDED = 56
+# 废单
+ORDER_JUNK = 57
+# 未知
+ORDER_UNKNOWN = 255
+
+
+"""
+账号状态
+"""
+# 无效
+ACCOUNT_STATUS_INVALID = -1
+# 正常
+ACCOUNT_STATUS_OK = 0
+# 连接中
+ACCOUNT_STATUS_WAITING_LOGIN = 1
+# 登陆中
+ACCOUNT_STATUSING = 2
+# 失败
+ACCOUNT_STATUS_FAIL = 3
+# 初始化中
+ACCOUNT_STATUS_INITING = 4
+# 数据刷新校正中
+ACCOUNT_STATUS_CORRECTING = 5
+# 收盘后
+ACCOUNT_STATUS_CLOSED = 6
+# 穿透副链接断开
+ACCOUNT_STATUS_ASSIS_FAIL = 7
+# 系统停用（总线使用-密码错误超限）
+ACCOUNT_STATUS_DISABLEBYSYS = 8
+# 用户停用（总线使用）
+ACCOUNT_STATUS_DISABLEBYUSER = 9
+
+
+"""
+划拨方向（文档数据字典提及）
+"""
+FUNDS_TRANSFER_NORMAL_TO_SPEED = 510  # 资金划拨-普通柜台到极速柜台
+FUNDS_TRANSFER_SPEED_TO_NORMAL = 511  # 资金划拨-极速柜台到普通柜台
+NODE_FUNDS_TRANSFER_SH_TO_SZ = 512  # 节点资金划拨-上海节点到深圳节点
+NODE_FUNDS_TRANSFER_SZ_TO_SH = 513  # 节点资金划拨-深圳节点到上海节点
+
+"""
+多空方向（文档数据字典提及）
+"""
+DIRECTION_FLAG_LONG = 48  # 多
+DIRECTION_FLAG_SHORT = 49  # 空
+
+"""
+交易操作（文档数据字典提及）
+"""
+OFFSET_FLAG_OPEN = 48  # 买入，开仓
+OFFSET_FLAG_CLOSE = 49  # 卖出，平仓
+OFFSET_FLAG_FORCECLOSE = 50  # 强平
+OFFSET_FLAG_CLOSETODAY = 51  # 平今
+OFFSET_FLAG_ClOSEYESTERDAY = 52  # 平昨
+OFFSET_FLAG_FORCEOFF = 53  # 强减
+OFFSET_FLAG_LOCALFORCECLOSE = 54  # 本地强平
+
+# ==================================================================
+# 以下常量文档未提及（指令交易类型/指令状态/指令操作类型），已全部注释
+# 详见原始 ntquant ntconstant.py
+# ==================================================================

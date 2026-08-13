@@ -201,7 +201,12 @@ pycookbook/                               # 顶层仓库(可运行的配方集)
     ├── 04_container/                         # docker/k8s 相关 python 工具
     ├── 05_ci_cd/                             # 自动化脚本
     ├── 06_observability/                     # 日志/指标/tracing (opentelemetry)
-    └── 07_security/                          # ★新增:bandit/safety 依赖扫描/密钥检测
+    ├── 07_security/                          # ★新增:bandit/safety 依赖扫描/密钥检测
+    └── 09_pyright/                          # Pyright LSP + Monaco Editor 学习
+        ├── 01_lsp_basics/                       # LSP 协议基础(管道/消息/初始化/补全)
+        ├── 02_monaco_basics/                    # 前端基础(HTML/CSS/JS → Monaco)
+        ├── 03_lsp_server/                       # 完整 LSP 服务(sync 方案/客户端)
+        └── 04_monaco_lsp/                       # ★20260812 Monaco+Pyright 完整 Demo
     # 注:cli / config_log 属"库用法",统一在 04_libraries,ops 不重复(见约定 6)
 │
 └── 11_projects/                          # ═══ ★ 项目实战(端到端完整项目)═══
