@@ -14,7 +14,7 @@
 运行方式（在项目根目录）：
   python 10_ops/09_pyright/05_multi_user/02_shared_pyright/bridge.py --serve
 
-端口：ws://127.0.0.1:3002/lsp
+端口：ws://127.0.0.1:4002/lsp
 
 依赖：
   pip install fastapi uvicorn
@@ -96,7 +96,7 @@ def _write_lsp_message(stdin, raw: bytes) -> None:
 # 磁盘上不建任何文件或目录，Pyright 在内存中分析
 
 def _real_prefix(session_id: str) -> str:
-    return f"{_WORKSPACE_URI}/_s_{session_id}/"
+    return f"{_WORKSPACE_URI}/_s_{session_id}_"
 
 
 def _extract_session(uri: str) -> str | None:
@@ -105,8 +105,9 @@ def _extract_session(uri: str) -> str | None:
     if not uri.startswith(marker):
         return None
     rest = uri[len(marker):]
-    slash = rest.find("/")
-    return rest[:slash] if slash > 0 else None
+    if len(rest) < 8:
+        return None
+    return rest[:8]
 
 
 def _rewrite_to_real(text: str, session_id: str) -> str:
@@ -345,7 +346,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="阶段2：共享一个 Pyright")
     parser.add_argument("--serve", action="store_true", help="启动服务")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=3002)
+    parser.add_argument("--port", type=int, default=4002)
     parser.add_argument("--workers", type=int, default=1, help="uvicorn worker 进程数（生产部署用）")
     args = parser.parse_args(["--serve"])
 

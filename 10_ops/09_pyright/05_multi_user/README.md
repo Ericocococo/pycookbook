@@ -22,9 +22,9 @@
 
 | 目录 | 内容 | HTTP 端口 | WS 端口 |
 |------|------|----------|---------|
-| [01_per_process/](01_per_process/) | 阶段1：一连接一进程，天然隔离 | 8081 | 3001 |
-| [02_shared_pyright/](02_shared_pyright/) | 阶段2：共享 Pyright，URI + ID 路由 | 8082 | 3002 |
-| [03_process_pool/](03_process_pool/) | 阶段3：N 个 Worker，最少连接调度 | 8083 | 3003 |
+| [01_per_process/](01_per_process/) | 阶段1：一连接一进程，天然隔离 | 9091 | 4001 |
+| [02_shared_pyright/](02_shared_pyright/) | 阶段2：共享 Pyright，URI + ID 路由 | 9092 | 4002 |
+| [03_process_pool/](03_process_pool/) | 阶段3：N 个 Worker，最少连接调度 | 9093 | 4003 |
 
 每个阶段目录内的文件：
 
@@ -51,10 +51,10 @@ python 10_ops/09_pyright/05_multi_user/03_process_pool/bridge.py --serve
 # ② 启动前端页面
 python 10_ops/09_pyright/05_multi_user/03_process_pool/http_server.py --serve
 
-# ③ 浏览器打开 http://127.0.0.1:8083
+# ③ 浏览器打开 http://127.0.0.1:9093
 
 # ④ 多用户压测
-python 10_ops/09_pyright/05_multi_user/03_process_pool/client/ws_client.py --port 3003 --users 3
+python 10_ops/09_pyright/05_multi_user/03_process_pool/client/ws_client.py --port 4003 --users 3
 ```
 
 ### bridge.py 参数
@@ -67,7 +67,7 @@ python bridge.py --serve [--host HOST] [--port PORT] [--workers N] [--pool-size 
 |------|--------|------|
 | `--serve` | 必填 | 启动服务 |
 | `--host` | 127.0.0.1 | 监听地址，生产部署用 0.0.0.0 |
-| `--port` | 3001/3002/3003 | WebSocket 端口 |
+| `--port` | 4001/4002/4003 | WebSocket 端口 |
 | `--workers` | 1 | uvicorn worker 进程数，提高连接吞吐 |
 | `--pool-size` | 3 | Pyright Worker 数量（仅阶段3） |
 
@@ -163,7 +163,7 @@ def _pick_worker() -> PyrightWorker:
     return min(_workers, key=lambda w: w.load)
 ```
 
-查看各 Worker 负载：`GET http://127.0.0.1:3003/status`
+查看各 Worker 负载：`GET http://127.0.0.1:4003/status`
 
 ## 并发压测结果
 
@@ -199,7 +199,7 @@ def _pick_worker() -> PyrightWorker:
 ```bash
 # bridge 启动（阶段3，4 worker × 3 Pyright = 12 个 Pyright 进程）
 cd 03_process_pool
-python bridge.py --serve --host 0.0.0.0 --port 3003 --workers 4 --pool-size 3
+python bridge.py --serve --host 0.0.0.0 --port 4003 --workers 4 --pool-size 3
 ```
 
 ```nginx
@@ -210,12 +210,12 @@ server {
     listen 80;
 
     location / {
-        proxy_pass http://127.0.0.1:8083;
+        proxy_pass http://127.0.0.1:9093;
     }
 
     location /lsp {
         limit_req zone=ws_limit burst=20 nodelay;
-        proxy_pass http://127.0.0.1:3003;
+        proxy_pass http://127.0.0.1:4003;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

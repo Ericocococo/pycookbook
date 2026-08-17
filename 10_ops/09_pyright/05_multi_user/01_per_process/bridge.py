@@ -14,7 +14,7 @@
 运行方式（在项目根目录）：
   python 10_ops/09_pyright/05_multi_user/01_per_process/bridge.py --serve
 
-端口：ws://127.0.0.1:3001/lsp
+端口：ws://127.0.0.1:4001/lsp
 
 依赖：
   pip install fastapi uvicorn
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="阶段1：一连接一进程")
     parser.add_argument("--serve", action="store_true", help="启动服务")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=3001)
+    parser.add_argument("--port", type=int, default=4001)
     parser.add_argument("--workers", type=int, default=1, help="uvicorn worker 进程数（生产部署用）")
     args = parser.parse_args(["--serve"])
 

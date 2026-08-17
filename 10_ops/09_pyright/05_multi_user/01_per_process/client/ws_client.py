@@ -4,10 +4,10 @@
 运行方式（在项目根目录）：
   python 10_ops/09_pyright/05_multi_user/client/ws_client.py
 
-默认连接阶段2（端口3002），可通过 --port 切换：
-  python ... --port 3001   → 阶段1
-  python ... --port 3002   → 阶段2
-  python ... --port 3003   → 阶段3
+默认连接阶段1（端口4001），可通过 --port 切换：
+  python ... --port 4001   → 阶段1
+  python ... --port 4002   → 阶段2
+  python ... --port 4003   → 阶段3
 
 依赖：
   pip install websockets
@@ -117,7 +117,7 @@ async def main(port: int, num_users: int) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="多用户测试客户端")
-    parser.add_argument("--port", type=int, default=3002, help="桥接服务端口")
+    parser.add_argument("--port", type=int, default=4001, help="桥接服务端口")
     parser.add_argument("--users", type=int, default=3, help="模拟用户数")
     args = parser.parse_args()
 
