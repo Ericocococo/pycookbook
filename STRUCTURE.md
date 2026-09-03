@@ -181,6 +181,11 @@ pycookbook/                               # 顶层仓库(可运行的配方集)
 │   ├── 03_engineering/                       # spark(pyspark)/dask/airflow/dbt 数据管道
 │   ├── 04_spider/                            # requests+bs4/scrapy/playwright/反爬
 │   └── 05_storage/                           # parquet/arrow/hdf5/时序库
+│       └── 02_file_formats/
+│           ├── 01_formats/                       # 各格式读写(csv/json/excel/parquet...)
+│           ├── 02_benchmark/                     # 格式性能对比
+│           ├── 03_encoding/                      # 编码处理
+│           └── 04_conversion/                    # ★20260821 新增: 格式转换(xlsx→csv 等)
 │
 ├── 09_ai/                                # ═══ ★★ 人工智能(体量最大,独立成世界)═══
 │   ├── 01_ml/                                # 机器学习: sklearn/xgboost/lightgbm/特征工程
