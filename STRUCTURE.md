@@ -197,7 +197,8 @@ pycookbook/                               # 顶层仓库(可运行的配方集)
 │   ├── 07_llm/                               # ★ 大模型: openai/anthropic-api/prompt/RAG/embedding/向量库
 │   ├── 08_agent/                             # ★ 智能体: langgraph/autogen/tool-calling/MCP/多智能体
 │   ├── 09_audio_speech/                      # 语音: whisper/tts/asr
-│   └── 10_mlops/                             # 模型工程: mlflow/onnx/triton/模型部署与量化
+│   ├── 10_mlops/                             # 模型工程: mlflow/onnx/triton/模型部署与量化
+│   └── 11_knowledge_graph/               # ★20260903 新增: 知识图谱(基础/图数据库/构建/推理/应用)
 │
 └── 10_ops/                               # ═══ ★ 工程化(横切;只放"纯工程活动",不放库用法)═══
     ├── 01_testing/                           # pytest/mock/hypothesis
