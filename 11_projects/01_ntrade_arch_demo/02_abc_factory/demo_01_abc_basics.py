@@ -1,6 +1,9 @@
 # coding=utf-8
 """抽象基类（ABC）— 用接口约束实现。
 
+【主线提示】01 里策略已定型（无参函数 + 模块级 api），它在等 provider
+干活。本阶段开始把 provider 做规范：先约束接口（02），再拆小组装（03）。
+
 ## 上一节的问题
 
 BacktestProvider 和 LiveProvider 没有任何约束，
