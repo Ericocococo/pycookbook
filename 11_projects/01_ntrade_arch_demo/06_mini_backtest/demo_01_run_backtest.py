@@ -1,7 +1,7 @@
 # coding=utf-8
 """最小可运行回测 — 所有概念的完整组合。
 
-## 本 demo 组合了前三层的所有概念
+## 本 demo 组合了各阶段的概念
 
 1. 全局上下文 + 模块级转发（01_global_context）
    → context.py 的 set/get/clear + api.py 的薄转发函数
@@ -12,8 +12,8 @@
 3. Mixin 组装（03_mixin_assembly）
    → backtest_impl.py 的 MarketMixin + CalendarMixin → BacktestDataProvider
 
-4. 引擎适配器（本层新增）
-   → engine.py 的 BacktestEngine 逐 bar 驱动策略
+4. 逐 bar 引擎 + 撮合时序（04_bar_engine，含 demo_03 的撮合队列）
+   → engine.py 每日：推进 → 换日登记 → 撮合昨日挂单 → 调策略
 
 ## 文件对应关系
 
@@ -26,7 +26,7 @@
 
 ## 运行方式
 
-    cd 04_mini_backtest
+    cd 06_mini_backtest
     python demo_01_run_backtest.py
 
 ## 学到什么
@@ -34,6 +34,7 @@
 - 一个策略函数如何通过 5 层间接调用最终执行到具体实现
 - 策略 → api.get_data() → get_current_context().data_provider → MarketMixin.get_data()
 - 引擎如何逐 bar 驱动策略，以及如何防止未来函数
+- 下单 ≠ 成交：api.order() 只挂单，次日开盘才撮合（对齐真实撮合时序）
 """
 
 import sys
@@ -53,9 +54,12 @@ from context import TradeContext, BacktestConfig
 
 def simple_strategy():
     """简单均价策略：
-    - 获取标的所有可见行情
-    - 如果最新收盘价 > 均价的 1.01 倍，买入
-    - 如果最新收盘价 < 均价的 0.99 倍，卖出
+    - 获取标的所有可见行情（引擎已截断到当前 bar，防未来函数）
+    - 最新收盘价 > 均价 1% → 市价挂单买入
+    - 最新收盘价 < 均价 1% → 市价挂单卖出
+
+    注意：api.order() 只挂单——引擎下一根 bar 开盘才撮合成交
+    （真实 ntrade 同样如此，见 04_bar_engine/demo_03_matching_timing.py）
     """
     symbol = "000001.SZ"
     bars = api.get_market_data(symbol)
@@ -70,11 +74,11 @@ def simple_strategy():
     holding = positions.get(symbol, 0)
 
     if latest["close"] > avg_price * 1.01 and holding == 0:
-        # 买入 10000 股
-        api.order(symbol, 10000, latest["close"])
+        # 市价挂单买入 10000 股（不指定价格，成交价 = 次 bar 开盘价）
+        api.order(symbol, 10000)
     elif latest["close"] < avg_price * 0.99 and holding > 0:
-        # 全部卖出
-        api.order(symbol, -holding, latest["close"])
+        # 市价挂单全卖（卖单受 T+1 限制：当日买入部分不可卖）
+        api.order(symbol, -holding)
 
 
 # ============================================================
@@ -93,7 +97,7 @@ if __name__ == "__main__":
     # 2. 工厂方法创建上下文（自动创建 DataProvider + Broker）
     ctx = TradeContext.backtest(config)
 
-    # 3. 运行（set_context → 逐 bar 驱动 → clear_context）
+    # 3. 运行（set_context → 逐 bar 驱动 → clear_context，异常也清理）
     result = ctx.run(simple_strategy)
 
     # 4. 查看结果

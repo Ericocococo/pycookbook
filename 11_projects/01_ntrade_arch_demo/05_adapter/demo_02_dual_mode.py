@@ -25,12 +25,16 @@ StrategyWrapper 根据传入参数判断模式：
 - 只传 strategy_fn → 单函数模式（next 直接调 fn）
 - 传 init_fn + handlebar → 生命周期模式（on_start 调 init，next 调 handlebar）
 
-ntrade 中 NtQuantTrader.run_backtest() 就是这样判断的。
+【真实做法对比】ntrade 不是手动传参选模式——策略文件加载后由
+strategy_loader 按函数名自动探测（有 handlebar/handle_bar → lifecycle，
+否则找 strategy/macd_strategy → single），再用 inspect.signature 内省
+handlebar 是否声明第二参。自动探测见 demo_03_auto_detect.py。
 
 ## 学到什么
 
 - 同一个适配器支持多种策略接口
 - ntrade 如何实现 xtquant/qmttools 双兼容
+- （自动探测版见 demo_03_auto_detect.py）
 """
 
 from abc import ABC, abstractmethod

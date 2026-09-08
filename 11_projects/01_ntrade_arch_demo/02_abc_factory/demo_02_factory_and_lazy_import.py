@@ -21,6 +21,14 @@ ntrade 中 NtTradeContext.backtest() / .live() 就是这个模式。
 - 工厂方法：策略不 new 对象，让工厂按配置决定
 - 延迟导入：解决可选依赖问题
 - dataclass 配置对象
+
+## ⚠️ 关于实盘：目前是"接口形状预留"，不是真能跑
+
+本 demo 的 LiveProvider 返回模拟数据是为了演示工厂分发；
+真实 ntrade 中 NtTradeContext.live() 能创建成功、run() 也能走到
+LiveEngine.start()，但 LiveEngine 是桩——一跑就抛
+NotImplementedError（模块注释原文："实盘事件驱动引擎（桩）"）。
+"同一份策略回测/实盘随意切换"目前只对回测成立，实盘等 QMT SDK 接入。
 """
 
 from abc import ABC, abstractmethod

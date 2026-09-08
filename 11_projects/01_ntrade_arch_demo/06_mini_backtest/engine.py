@@ -29,11 +29,21 @@ class BacktestEngine:
     def run(self) -> Dict[str, Any]:
         """逐 bar 驱动策略。
 
-        对应 C++ BacktestEngine.run_multi() 的流程：
-        1. 遍历每个交易日
-        2. 更新当前 bar 位置（防未来函数）
-        3. 调用策略函数
-        4. 收集结果
+        mini 每日顺序（与 C++ OnStrategyNext 语义等价，见下注）：
+            1. 推进 bar（provider._bar_index，防未来函数——数据只增不减，
+               策略只能看到截至当前推进位置的行）
+            2. 新交易日: broker.on_new_day()（昨日买入登记清空 → 可卖）
+            3. 撮合昨日挂单: broker.match_pending(本 bar 开盘价) ← 挂单次日撮合
+            4. 调策略函数（其 api.order 只是挂单，今天不再成交）
+            5. 收盘按最新价记录净值
+
+        【顺序注】真实 C++ 顺序是"撮合在前、换日回调在后"：
+        ManageActions（撮合昨日单）→ on_market_open（换日登记处理）→ …
+        → next()。mini 把"清登记"挪到撮合之前——因为真实登记按日期键
+        区分（换日回调在撮合后触发，清空会误清新撮合的当日买入，见
+        backtest_impl.py on_new_day 注释与 00_design 红线⑤），而 mini
+        是单键模型，先清后撮同样保证"当日撮合成交记入新登记（当日不可卖）"。
+        两种顺序殊途同归：真实靠日期键、mini 靠先后次序。
         """
         config = self._ctx.config
         provider = self._ctx.data_provider
@@ -48,18 +58,29 @@ class BacktestEngine:
         equity_curve = []
 
         for i, date in enumerate(dates):
-            # 更新 bar 位置（让 DataProvider 只返回当前 bar 及之前的数据）
+            # ① 更新 bar 位置（让 DataProvider 只返回当前 bar 及之前的数据）
             provider._bar_index = i
 
             print(f"\n--- {date} (bar {i + 1}/{len(dates)}) ---")
 
-            # 调用策略函数（策略内部通过 api.xxx() → get_current_context() 取数据/下单）
+            # ② 新交易日 → 昨日买入今日可卖（T+1 登记清空）
+            broker.on_new_day()
+
+            # ③ 撮合队列：昨日挂的单，按本 bar 开盘价成交
+            #   （行情已推进到本 bar，市价单=开盘价——不是昨收！）
+            open_prices = {}
+            for sym in config.symbols:
+                bars = provider.get_market_data(sym)
+                if bars:
+                    open_prices[sym] = bars[-1]["open"]
+            broker.match_pending(open_prices)
+
+            # ④ 调用策略函数（策略内部 api.xxx() → get_current_context() 取数/挂单）
             self._strategy_fn()
 
-            # 记录净值
+            # ⑤ 记录净值（收盘价估算持仓市值）
             cash = broker.get_cash()
             positions = broker.get_positions()
-            # 简化：用最后一根 bar 的收盘价估算持仓市值
             market_value = 0
             for sym, vol in positions.items():
                 bars = provider.get_market_data(sym)

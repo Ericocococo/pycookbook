@@ -12,41 +12,43 @@
     with use_provider(BacktestProvider()):
         my_strategy()    # 退出 with 自动 clear
 
-ntrade 中 NtTradeContext.run() 的 try/finally 就是这个思路。
+ntrade 中 NtTradeContext.run() 的 try/finally 就是这个思路：
+    set_current_context(self)
+    try:
+        adapter.run()
+    finally:
+        clear_current_context()
 
 ## 学到什么
 
-- 上下文管理器保证资源清理
+- 上下文管理器保证资源清理（异常路径也清）
 - ntrade 中 set_current_context / clear_current_context 的最佳实践
+- 线程本地存储仍是 threading.local（同 demo_01，多线程各持各的）
 """
 
 import threading
 from contextlib import contextmanager
 
 
-# ---- 全局上下文（同 demo_01） ----
+# ---- 线程本地上下文（同 demo_01：threading.local，每线程独立） ----
 
-_current_provider = None
-_lock = threading.Lock()
+_local = threading.local()
 
 
 def set_provider(provider):
-    global _current_provider
-    with _lock:
-        _current_provider = provider
+    _local.provider = provider
 
 
 def get_provider():
-    with _lock:
-        if _current_provider is None:
-            raise RuntimeError("未设置 provider")
-        return _current_provider
+    provider = getattr(_local, "provider", None)
+    if provider is None:
+        raise RuntimeError("未设置 provider")
+    return provider
 
 
 def clear_provider():
-    global _current_provider
-    with _lock:
-        _current_provider = None
+    if hasattr(_local, "provider"):
+        del _local.provider
 
 
 @contextmanager

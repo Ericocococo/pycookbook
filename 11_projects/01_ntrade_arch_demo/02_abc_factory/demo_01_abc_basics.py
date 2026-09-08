@@ -12,12 +12,20 @@ BacktestProvider 和 LiveProvider 没有任何约束，
 少写一个就无法实例化 — 错误在创建对象时暴露，而不是调用时。
 
 ntrade 中的 BaseDataProvider / BaseBroker 就是这么做的。
+真实基类把方法分成三种能力（接口先立、能力分级）：
+  ① @abstractmethod 必实现：回测/实盘共用的核心能力（get_market_data_ex 等）
+  ② 默认抛 NotSupportedInBacktestError：仅实盘能力（subscribe_quote 等），
+     回测调用时报"回测不支持"而不是静默出错
+  ③ 默认抛 NotImplementedError：尚未实现的能力（get_financial_data 等）
+  （还有第四态：静默降级，如 cancel_order_stock_sysid 回测直接返回 -1）
+本 demo 演示 ③ 的机制；② 的区别在异常类型语义，代码中注释说明。
 
 ## 学到什么
 
 - ABC + @abstractmethod 的用法
 - 抽象方法 vs 带默认实现的方法（ntrade 两种都用了）
 - 何时用 abstract、何时给默认实现
+- 能力分级：回测必实现 / 仅实盘抛错 / 未实现抛错 / 静默降级
 """
 
 from abc import ABC, abstractmethod

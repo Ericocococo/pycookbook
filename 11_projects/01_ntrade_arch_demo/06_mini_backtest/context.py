@@ -9,34 +9,33 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 # ============================================================
-# 全局上下文
+# 线程本地上下文（对齐真实 nt_context.py：threading.local 而非全局+Lock）
 # ============================================================
 
-_current_context: Optional[TradeContext] = None
-_lock = threading.Lock()
+_local = threading.local()
 
 
 def set_current_context(ctx: TradeContext) -> None:
-    global _current_context
-    with _lock:
-        _current_context = ctx
+    """设置当前线程的上下文（只影响本线程）。"""
+    _local.ctx = ctx
 
 
 def get_current_context() -> TradeContext:
-    with _lock:
-        if _current_context is None:
-            raise RuntimeError("TradeContext 未初始化")
-        return _current_context
+    """获取当前线程的上下文。未初始化抛 RuntimeError（fail-fast）。"""
+    ctx = getattr(_local, "ctx", None)
+    if ctx is None:
+        raise RuntimeError("TradeContext 未初始化")
+    return ctx
 
 
 def clear_current_context() -> None:
-    global _current_context
-    with _lock:
-        _current_context = None
+    """清除当前线程的上下文（run() 的 finally 中调用）。"""
+    if hasattr(_local, "ctx"):
+        del _local.ctx
 
 
 # ============================================================
@@ -57,25 +56,38 @@ class BacktestConfig:
 # ============================================================
 
 class BaseDataProvider(ABC):
-    """行情数据提供者抽象。对应 ntrade 的 BaseDataProvider。"""
+    """行情数据提供者抽象。对应 ntrade 的 BaseDataProvider。
+
+    引擎通过 _bar_index 推进"当前 bar 位置"实现防未来函数：
+    数据提供者只返回截至该位置的行情（数据只增不减，对齐真实 HisBarMgr）。
+    """
+
+    # 类属性默认值：引擎每日推进（provider._bar_index = i）
+    _bar_index: int = 0
 
     @abstractmethod
-    def get_market_data(self, symbol: str, start: str, end: str) -> List[Dict]:
-        """获取历史行情。"""
+    def get_market_data(self, symbol: str, start: str = "", end: str = "") -> List[Dict]:
+        """获取历史行情（只含当前 bar 及之前）。"""
         ...
 
     @abstractmethod
-    def get_trading_dates(self, start: str, end: str) -> List[str]:
+    def get_trading_dates(self, start: str = "", end: str = "") -> List[str]:
         """获取交易日列表。"""
         ...
 
 
 class BaseBroker(ABC):
-    """交易代理抽象。对应 ntrade 的 BaseBroker。"""
+    """交易代理抽象。对应 ntrade 的 BaseBroker。
+
+    下单/查询为回测与实盘共用的抽象方法；挂单撮合与 T+1 登记是回测
+    broker 的扩展能力（真实中 NtBacktestBroker 特有，此处声明占位让
+    引擎按接口编程）。
+    """
 
     @abstractmethod
-    def order(self, symbol: str, volume: int, price: float) -> int:
-        """下单，返回订单号。"""
+    def order(self, symbol: str, volume: int, price_type: str = "market",
+              price: float | None = None) -> int:
+        """下单（挂单），返回订单号。price_type: market 市价 / limit 限价。"""
         ...
 
     @abstractmethod
@@ -87,6 +99,21 @@ class BaseBroker(ABC):
     def get_positions(self) -> Dict[str, int]:
         """查询持仓。"""
         ...
+
+    # ---- 回测扩展能力（挂单撮合队列，实盘 broker 无）----
+
+    def on_new_day(self) -> None:
+        """新交易日开始：T+1 登记清空（昨日买入今日可卖）。"""
+        pass
+
+    def match_pending(self, open_prices: Dict[str, float]) -> None:
+        """撮合挂单队列（本 bar 开盘价成交）。"""
+        del open_prices  # 基类占位：实盘 broker 无撮合队列
+        pass
+
+    def get_trades(self) -> list:
+        """成交记录列表。"""
+        return []
 
 
 # ============================================================
