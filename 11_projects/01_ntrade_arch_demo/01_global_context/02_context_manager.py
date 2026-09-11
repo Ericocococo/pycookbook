@@ -1,5 +1,13 @@
 # coding=utf-8
-"""用上下文管理器让 set/clear 更安全。
+"""用上下文管理器让 set/clear 更安全
+
+Python 3.12。
+运行: python 02_context_manager.py
+
+演示：
+  ① 回测模式：with 语句自动 set/clear，异常也能正确清理
+  ② 实盘模式：同一策略零改动切换运行模式
+  ③ 验证清除：退出 with 后调用会抛 RuntimeError
 
 ## 上一节的问题
 
@@ -23,14 +31,14 @@ ntrade 中 NtTradeContext.run() 的 try/finally 就是这个思路：
 
 - 上下文管理器保证资源清理（异常路径也清）
 - ntrade 中 set_current_context / clear_current_context 的最佳实践
-- 线程本地存储仍是 threading.local（同 demo_01，多线程各持各的）
+- 线程本地存储仍是 threading.local（同 01_context_switch，多线程各持各的）
 """
 
 import threading
 from contextlib import contextmanager
 
 
-# ---- 线程本地上下文（同 demo_01：threading.local，每线程独立） ----
+# ---- 线程本地上下文（同 01_context_switch：threading.local，每线程独立） ----
 
 _local = threading.local()
 
@@ -71,7 +79,7 @@ def use_provider(provider):
         clear_provider()
 
 
-# ---- 两种 Provider（同 demo_01） ----
+# ---- 两种 Provider（同 01_context_switch） ----
 
 class BacktestProvider:
     def get_data(self, symbol):
@@ -89,7 +97,7 @@ class LiveProvider:
         return f"[真实下单] {symbol} x {volume} 股"
 
 
-# ---- 模块级函数（同 demo_01） ----
+# ---- 模块级函数（同 01_context_switch） ----
 
 def get_data(symbol):
     return get_provider().get_data(symbol)
@@ -99,7 +107,7 @@ def place_order(symbol, volume):
     return get_provider().place_order(symbol, volume)
 
 
-# ---- 策略（同 demo_01） ----
+# ---- 策略（同 01_context_switch） ----
 
 def my_strategy():
     data = get_data("600519.SH")
@@ -110,22 +118,34 @@ def my_strategy():
 
 
 # ============================================================
-# 运行演示 — 对比手动 set/clear vs 上下文管理器
+# 运行演示
 # ============================================================
 
-if __name__ == "__main__":
-    # 用 with 语句，即使 my_strategy 抛异常也能正确 clear
-    print("=== 回测模式（with 语句）===")
+
+def demo01_backtest():
+    """① with 语句回测：即使策略抛异常也能自动 clear。"""
+    print("① 回测模式（with 语句）")
     with use_provider(BacktestProvider()):
         my_strategy()
 
-    print("\n=== 实盘模式（with 语句）===")
+
+def demo02_live():
+    """② with 语句实盘：同一策略零改动切换运行模式。"""
+    print("\n② 实盘模式（with 语句）")
     with use_provider(LiveProvider()):
         my_strategy()
 
-    # 验证：退出 with 后上下文已清除
-    print("\n=== 验证上下文已清除 ===")
+
+def demo03_verify_cleared():
+    """③ 验证：退出 with 后上下文已清除，调用会抛 RuntimeError。"""
+    print("\n③ 验证上下文已清除")
     try:
         get_data("600519.SH")
     except RuntimeError as e:
         print(f"  正确抛出异常: {e}")
+
+
+if __name__ == "__main__":
+    demo01_backtest()
+    demo02_live()
+    demo03_verify_cleared()

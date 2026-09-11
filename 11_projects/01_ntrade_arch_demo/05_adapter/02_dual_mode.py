@@ -1,6 +1,13 @@
 # coding=utf-8
 """双模式策略兼容 — 一个适配器支持两种写法。
 
+Python 3.12。
+运行: python 02_dual_mode.py
+
+演示：
+  ① 单函数模式：xtquant 风格，策略是一个无参函数
+  ② 生命周期模式：qmttools 风格，init + handlebar 双回调
+
 ## 实际问题
 
 ntrade 要兼容两种策略写法：
@@ -28,20 +35,20 @@ StrategyWrapper 根据传入参数判断模式：
 【真实做法对比】ntrade 不是手动传参选模式——策略文件加载后由
 strategy_loader 按函数名自动探测（有 handlebar/handle_bar → lifecycle，
 否则找 strategy/macd_strategy → single），再用 inspect.signature 内省
-handlebar 是否声明第二参。自动探测见 demo_03_auto_detect.py。
+handlebar 是否声明第二参。自动探测见 03_auto_detect.py。
 
 ## 学到什么
 
 - 同一个适配器支持多种策略接口
 - ntrade 如何实现 xtquant/qmttools 双兼容
-- （自动探测版见 demo_03_auto_detect.py）
+- （自动探测版见 03_auto_detect.py）
 """
 
 from abc import ABC, abstractmethod
 
 
 # ============================================================
-# 策略协议（同 demo_01）
+# 策略协议（同 01_strategy_protocol）
 # ============================================================
 
 class IStrategy(ABC):
@@ -141,7 +148,7 @@ class StrategyWrapper(IStrategy):
 
 
 # ============================================================
-# 引擎（同 demo_01）
+# 引擎（同 01_strategy_protocol）
 # ============================================================
 
 class Engine:
@@ -188,22 +195,24 @@ def handlebar(context: BarContext):
 # 运行演示
 # ============================================================
 
-if __name__ == "__main__":
+def demo01_single_fn():
+    """① 单函数模式：xtquant 风格，策略是一个无参函数，next() 直接调用。"""
+    print("① 单函数模式（xtquant 风格）")
     dates = ["2024-01-02", "2024-01-03", "2024-01-04"]
+    wrapper = StrategyWrapper(strategy_fn=simple_strategy)
+    Engine(dates, wrapper).run()
 
-    # ---- 模式一：单函数 ----
-    print("=" * 50)
-    print("模式一：单函数（xtquant 风格）")
-    print("=" * 50)
-    wrapper1 = StrategyWrapper(strategy_fn=simple_strategy)
-    Engine(dates, wrapper1).run()
 
-    # ---- 模式二：init + handlebar ----
-    print("\n" + "=" * 50)
-    print("模式二：init + handlebar（qmttools 风格）")
-    print("=" * 50)
-    wrapper2 = StrategyWrapper(strategy_fn=init, handlebar=handlebar)
-    Engine(dates, wrapper2).run()
-
+def demo02_lifecycle():
+    """② 生命周期模式：qmttools 风格，init + handlebar 双回调。"""
+    print("\n② 生命周期模式（init + handlebar，qmttools 风格）")
+    dates = ["2024-01-02", "2024-01-03", "2024-01-04"]
+    wrapper = StrategyWrapper(strategy_fn=init, handlebar=handlebar)
+    Engine(dates, wrapper).run()
     # 同一个引擎，同一个 Engine.run()，两种策略都能跑
     # ntrade 的 NtQuantTrader.run() 也是这样分派的
+
+
+if __name__ == "__main__":
+    demo01_single_fn()
+    demo02_lifecycle()

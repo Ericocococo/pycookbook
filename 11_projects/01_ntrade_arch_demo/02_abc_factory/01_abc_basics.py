@@ -1,6 +1,15 @@
 # coding=utf-8
 """抽象基类（ABC）— 用接口约束实现。
 
+Python 3.12。
+运行: python 01_abc_basics.py
+
+演示：
+  ① 正常创建：创建 BacktestProvider 并调用 get_data / place_order
+  ② 实盘订阅：LiveProvider 支持 subscribe_realtime
+  ③ 回测订阅：BacktestProvider 调用 subscribe_realtime 抛异常
+  ④ 缺失方法：BrokenProvider 少实现 place_order 无法实例化
+
 【主线提示】01 里策略已定型（无参函数 + 模块级 api），它在等 provider
 干活。本阶段开始把 provider 做规范：先约束接口（02），再拆小组装（03）。
 
@@ -110,31 +119,45 @@ class BrokenProvider(BaseProvider):
 
 
 # ============================================================
-# 运行演示
+# 演示函数
 # ============================================================
 
-if __name__ == "__main__":
-    # 正常创建
-    print("=== 正常创建 BacktestProvider ===")
+def demo01_create_provider():
+    """① 正常创建 BacktestProvider 并调用 get_data / place_order。"""
+    print("① 正常创建 BacktestProvider")
     bt = BacktestProvider()
     print(f"  {bt.get_data('600519.SH')}")
     print(f"  {bt.place_order('600519.SH', 1000)}")
 
-    # 实盘的 subscribe_realtime 正常工作
-    print("\n=== LiveProvider 支持 subscribe_realtime ===")
+
+def demo02_live_subscribe():
+    """② LiveProvider 支持 subscribe_realtime。"""
+    print("\n② LiveProvider 支持 subscribe_realtime")
     live = LiveProvider()
     live.subscribe_realtime("600519.SH", lambda: None)
 
-    # 回测的 subscribe_realtime 抛异常（默认实现）
-    print("\n=== BacktestProvider 不支持 subscribe_realtime ===")
+
+def demo03_backtest_subscribe():
+    """③ BacktestProvider 调用 subscribe_realtime 抛异常（默认实现）。"""
+    print("\n③ BacktestProvider 不支持 subscribe_realtime")
+    bt = BacktestProvider()
     try:
         bt.subscribe_realtime("600519.SH", lambda: None)
     except NotImplementedError as e:
         print(f"  正确抛出: {e}")
 
-    # 少实现方法 → 无法实例化（错误提前暴露）
-    print("\n=== BrokenProvider 少实现了 place_order ===")
+
+def demo04_broken_provider():
+    """④ BrokenProvider 少实现 place_order — 无法实例化。"""
+    print("\n④ BrokenProvider 少实现了 place_order")
     try:
         broken = BrokenProvider()
     except TypeError as e:
         print(f"  无法实例化: {e}")
+
+
+if __name__ == "__main__":
+    demo01_create_provider()
+    demo02_live_subscribe()
+    demo03_backtest_subscribe()
+    demo04_broken_provider()

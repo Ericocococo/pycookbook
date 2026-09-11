@@ -1,5 +1,13 @@
 # coding=utf-8
-"""全局上下文 + 模块级函数转发 — ntrade 的核心设计模式。
+"""全局上下文 + 模块级函数转发 — ntrade 的核心设计模式
+
+Python 3.12。
+运行: python 01_context_switch.py
+
+演示：
+  ① 回测模式：单线程 set 回测 provider → 策略拿到本地CSV数据
+  ② 实盘模式：单线程 set 实盘 provider → 同一策略零改动切换运行模式
+  ③ 多线程并发：回测+实盘任务各跑各的，threading.local 保证互不串扰
 
 ## 要解决的问题
 
@@ -24,7 +32,7 @@ lifecycle 模式只收 context）。引擎不知道也不关心你的策略内�
 
 1. 用 threading.local 存当前 provider（每线程一份，互不干扰）
 2. 模块级函数（api.get_data）内部只做一件事：get_provider().get_data(...)
-3. 启动时 set 具体实现，结束时 clear（demo_02 用 with 语句保证清理）
+3. 启动时 set 具体实现，结束时 clear（02_context_manager 用 with 语句保证清理）
 
 策略代码只 import api，不 import 任何具体实现。
 这就是 ntrade 中 ntdata.py / nttrader.py 的做法。
@@ -132,7 +140,7 @@ def my_strategy():
 
 
 # ============================================================
-# 运行演示
+# 辅助函数（多线程 demo 用）
 # ============================================================
 
 def _backtest_job():
@@ -161,34 +169,52 @@ def _run_and_print(name):
     print(f"    [{name}] 行情来源: {data['source']}, 价格: {data['price']}")
 
 
-if __name__ == "__main__":
-    # ---- 单线程：回测模式 ----
-    print("=== 回测模式 ===")
+# ============================================================
+# 运行演示
+# ============================================================
+
+
+def demo01_backtest():
+    """① 单线程回测：set 回测 provider → 跑策略 → clear。"""
+    print("① 回测模式")
     set_provider(BacktestProvider())
     try:
         my_strategy()
     finally:
         clear_provider()
 
-    # ---- 单线程：实盘模式 ----
-    print("\n=== 实盘模式 ===")
+
+def demo02_live():
+    """② 单线程实盘：set 实盘 provider → 同一策略零改动切换运行模式。
+
+    同一个 my_strategy() 函数，零改动切换了运行模式，
+    这就是 ntrade 能做到「策略代码写一份」的原因。
+    """
+    print("\n② 实盘模式")
     set_provider(LiveProvider())
     try:
         my_strategy()
     finally:
         clear_provider()
 
-    # 同一个 my_strategy() 函数，零改动切换了运行模式
-    # 这就是 ntrade 能做到「策略代码写一份」的原因
 
-    # ---- 多线程并发：两个任务各跑各的模式 ----
-    # 关键验证：若用"全局变量+Lock"，线程 B 可能 get 到线程 A set 的 provider；
-    # threading.local 保证每线程独立——回测线程始终看到本地CSV、
-    # 实盘线程始终看到交易所实时，互不串扰（真实回测服务正是多线程并发跑任务）
-    print("\n=== 多线程并发：回测任务 + 实盘任务同时跑 ===")
+def demo03_multithread():
+    """③ 多线程并发：回测+实盘任务各跑各的，验证 threading.local 线程隔离。
+
+    若用"全局变量+Lock"，线程 B 可能 get 到线程 A set 的 provider；
+    threading.local 保证每线程独立——回测线程始终看到本地CSV、
+    实盘线程始终看到交易所实时，互不串扰。
+    """
+    print("\n③ 多线程并发：回测任务 + 实盘任务同时跑")
     t1 = threading.Thread(target=_backtest_job)
     t2 = threading.Thread(target=_live_job)
     t1.start()
     t2.start()
     t1.join()
     t2.join()
+
+
+if __name__ == "__main__":
+    demo01_backtest()
+    demo02_live()
+    demo03_multithread()

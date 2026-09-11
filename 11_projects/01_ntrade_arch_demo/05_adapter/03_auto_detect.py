@@ -1,9 +1,16 @@
 # coding=utf-8
 """自动探测策略模式 — 引擎零配置，按函数名认出两种写法。
 
-## demo_02 留下的问题
+Python 3.12。
+运行: python 03_auto_detect.py
 
-demo_02 里选哪种模式靠**手动传参**（构造 StrategyWrapper 时指定
+演示：
+  ① 三种策略文件自动探测：single / lifecycle / lifecycle+bar_dict+别名
+  ② 签名内省：handlebar 是否声明第二参 bar_dict
+
+## 02_dual_mode 留下的问题
+
+02_dual_mode 里选哪种模式靠**手动传参**（构造 StrategyWrapper 时指定
 strategy_fn / handlebar）。真实 ntrade 不需要——策略文件加载后
 引擎自己"看函数名"就能判断该按哪种方式驱动。
 
@@ -132,8 +139,12 @@ def on_backtest_finished_c():
     print("    [on_backtest_finished] qmttools 别名钩子触发（等同 on_stop）")
 
 
-if __name__ == "__main__":
-    # 三个"策略文件"的命名空间（dict 模拟模块属性）
+def demo01_auto_detect():
+    """① 三种策略文件自动探测：
+    文件A = single 模式，文件B = lifecycle 模式，
+    文件C = lifecycle + bar_dict + 别名钩子。
+    """
+    print("① 三种策略文件自动探测")
     modules = {
         "文件A(single)": {"strategy": strategy_a},
         "文件B(lifecycle)": {"init": init_b, "handlebar": handlebar_b},
@@ -144,18 +155,24 @@ if __name__ == "__main__":
     }
 
     engine = Engine()
-
     for name, mod in modules.items():
-        print(f"=== {name} ===")
+        print(f"\n  --- {name} ---")
         desc = collect_strategy_functions(mod)          # 自动探测
         print(f"  探测结果: mode = {desc['mode']}")
         engine.run(desc)                                # 引擎统一驱动
 
-    # 签名内省演示：handlebar 是否声明第二参
-    print("\n=== 签名内省：handlebar 收不收 bar_dict ===")
+
+def demo02_signature_inspect():
+    """② 签名内省：handlebar 是否声明第二参 bar_dict，引擎按声明动态传参。"""
+    print("\n② 签名内省：handlebar 收不收 bar_dict")
     ctx = {"symbol": "600519.SH"}
     bar_dict = {"600519.SH": {"close": 1715.0}}
     print("  调 handlebar_b（一参）:")
     call_handlebar(handlebar_b, ctx, bar_dict)
     print("  调 handlebar_c（两参）:")
     call_handlebar(handlebar_c, ctx, bar_dict)
+
+
+if __name__ == "__main__":
+    demo01_auto_detect()
+    demo02_signature_inspect()

@@ -1,6 +1,13 @@
 # coding=utf-8
 """适配器模式 — 把策略函数包装成引擎能识别的接口。
 
+Python 3.12。
+运行: python 01_strategy_protocol.py
+
+演示：
+  ① 适配器包装：把普通策略函数包装成引擎要求的 IStrategy 协议对象
+  ② 引擎驱动：引擎按生命周期（on_start/next/on_stop）逐 bar 调用策略
+
 【衔接 04】04 的引擎是我们用纯 Python 模拟的，直接调 Python 函数没问题；
 真实引擎是 C++（pybind 桥接），它只能调**固定协议**的回调方法——
 所以需要一个适配层，把"任意写法的策略函数"翻译成"引擎认得的协议对象"。
@@ -158,7 +165,12 @@ class StrategyWrapper(IStrategy):
 # 运行演示
 # ============================================================
 
-if __name__ == "__main__":
+def demo01_adapter_wrap():
+    """① 适配器包装 + 引擎驱动：
+    用户只写了一个普通函数，适配器包装成 IStrategy，
+    引擎按生命周期（on_start → next × N → on_stop）逐 bar 驱动。
+    """
+    print("① 适配器包装 + 引擎驱动")
     dates = ["2024-01-02", "2024-01-03", "2024-01-04"]
 
     # 用户只写了一个函数
@@ -168,3 +180,7 @@ if __name__ == "__main__":
     # 引擎只认识 IStrategy，不知道里面是个普通函数
     engine = Engine(dates, wrapper)
     engine.run()
+
+
+if __name__ == "__main__":
+    demo01_adapter_wrap()

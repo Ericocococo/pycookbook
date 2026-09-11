@@ -1,9 +1,16 @@
 # coding=utf-8
 """撮合时序 — 下单价 ≠ 成交价，挂单到下一根 bar 才撮合。
 
+Python 3.12。
+运行: python 03_matching_timing.py
+
+演示：
+  ① 撮合口径对比：当日收盘成交 vs 挂单次日开盘成交，展示差异与结论
+  ② 限价单判定：C++ try_match 的三种情况
+
 ## 前面 demo 的问题（为什么单独开一节）
 
-demo_01/02 都是「信号出现当天按收盘价成交」——这是教学简化，
+01_simplest_loop/02_engine_class 都是「信号出现当天按收盘价成交」——这是教学简化，
 真实引擎不是这样：策略挂的单要等**下一根 bar** 才撮合。
 简化的坏处：写「今日金叉今日买」的策略，回测按当日成交能赚，
 实盘按次日开盘成交可能亏——收益口径全错。
@@ -59,7 +66,7 @@ def decide(i, position):
 
 
 # ============================================================
-# 口径 A：当日收盘成交（demo_01/02 的简化，教学对照用）
+# 口径 A：当日收盘成交（01_simplest_loop/02_engine_class 的简化，教学对照用）
 # ============================================================
 
 def run_same_day_close(initial_cash=100_000):
@@ -123,7 +130,7 @@ def run_pending_queue(initial_cash=100_000):
 # 限价单：按次 bar 的 low/high 判定能否成交
 # ============================================================
 
-def demo_limit_order():
+def demo03_limit_order():
     """市价单无脑按开盘价成交；限价单要等价格"碰到"限价。
 
     C++ try_match 的真实判定（已源码核实）：
@@ -135,7 +142,7 @@ def demo_limit_order():
     - 限价卖单：lp ≤ high → 成交，价 = lp
     - 当日没成交的挂单：换日清算时作废（当日有效单）
     """
-    print("限价单判定（C++ try_match 规则）:")
+    print("① 限价单判定（C++ try_match 规则）:")
     cases = [
         ("买单限价 10.9, 开盘 10.8", 10.9, 10.8, 10.7),  # 开盘即触及 → 按限价 10.9 成交
         ("买单限价 10.6, 开盘 10.8", 10.6, 10.8, 10.7),  # low > 限价 → 不成交作废
@@ -152,26 +159,34 @@ def demo_limit_order():
         print(f"  {name}: {msg}")
 
 
-if __name__ == "__main__":
+def demo01_compare_timing():
+    """① 口径A当日收盘成交
+    ② 口径B挂单次日开盘成交
+    ③ 结论：两口径净值差异
+    """
     trades_a, equity_a = run_same_day_close()
     trades_b, equity_b = run_pending_queue()
 
-    print("=== 口径 A：当日收盘价成交（教学简化）===")
+    print("① 口径 A：当日收盘价成交（教学简化）")
     for t in trades_a:
         print(f"  {t[0]} {t[1]} @ {t[2]:.2f}")
     print(f"  期末净值: {equity_a:,.0f}")
 
-    print("\n=== 口径 B：挂单次日开盘成交（真实引擎）===")
+    print("\n② 口径 B：挂单次日开盘成交（真实引擎）")
     for t in trades_b:
         print(f"  {t[0]} {t[1]} @ {t[2]:.2f}")
     print(f"  期末净值: {equity_b:,.0f}")
 
     print(f"""
-结论: 两口径差 {equity_a - equity_b:,.0f}
+③ 结论: 两口径差 {equity_a - equity_b:,.0f}
   口径 A 在 01-03 收盘(10.5)就买到 → 看似占了便宜（结果不亏不赚）；
   口径 B 等 01-05 开盘(10.8)才成交 → 真实买贵 0.3，净值亏 2,760。
   真实引擎是 B：信号出现当晚挂单，第二天开盘才成交——回测别按 A 算。
   信号当日收盘价成交 = 把"收盘后才知道的信息"当成了当天可用 → 未来函数。
   你写的策略若在回测里"今日信号今日成交"，实盘必然对不上收益。""")
 
-    demo_limit_order()
+
+if __name__ == "__main__":
+    demo01_compare_timing()
+    print()
+    demo03_limit_order()

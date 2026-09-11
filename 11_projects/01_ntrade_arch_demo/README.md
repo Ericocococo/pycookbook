@@ -29,7 +29,7 @@ ntrade 用三层架构实现「策略代码写一份，回测/实盘随意切换
 
 | 步骤 | 读什么 | 目标 |
 |------|--------|------|
-| **总** | ① 先跑一次 [06_mini_backtest/demo_01_run_backtest.py](06_mini_backtest/demo_01_run_backtest.py) 看回测输出长啥样（30 秒，不求懂）② 看上面的"架构全景" | 建立全局印象：知道我们要造的最终产品长什么样、三层各是什么——学零件时心里有"装在哪"的锚点 |
+| **总** | ① 先跑一次 [06_mini_backtest/01_run_backtest.py](06_mini_backtest/01_run_backtest.py) 看回测输出长啥样（30 秒，不求懂）② 看上面的"架构全景" | 建立全局印象：知道我们要造的最终产品长什么样、三层各是什么——学零件时心里有"装在哪"的锚点 |
 | **分** | `01_global_context/` → `06_mini_backtest/` 逐个学 | 每阶段只引入一个新概念；docstring 已标注"教学简化 vs 真实机制"注脚，不会被带偏 |
 | **总** | 全部学完，再读 [00_design/](00_design/) 复盘 | 此时 00_design 是"验证"不是"预习"：对照真实代码映射表、5 条红线，检查自己学到的是否与真实一致 |
 
@@ -52,24 +52,24 @@ ntrade 用三层架构实现「策略代码写一份，回测/实盘随意切换
 
 | 文件 | 讲什么 | 备注 |
 |------|--------|------|
-| [01/demo_01](01_global_context/demo_01_context_switch.py) | 全局上下文 + 模块级转发，threading.local + 多线程并发隔离 | 起点，先理解"为什么不能传参" |
-| [01/demo_02](01_global_context/demo_02_context_manager.py) | 用 `with` 上下文管理器自动 set/clear | 防忘记清理、异常也清 |
-| [02/demo_01](02_abc_factory/demo_01_abc_basics.py) | 抽象基类约束接口；默认实现分级（能力分级） | 02 开始"做 provider" |
-| [02/demo_02](02_abc_factory/demo_02_factory_and_lazy_import.py) | 工厂方法按配置创建实现 + 延迟导入 + dataclass 配置 | ⚠️ 实盘是桩（docstring 有声明） |
-| [03/demo_01](03_mixin_assembly/demo_01_mixin_basics.py) | Mixin 按数据维度拆小类再多继承组装 + MRO | provider 从"几个方法"变"完整服务" |
-| [03/demo_02](03_mixin_assembly/demo_02_dual_path.py) | Mixin 内部真实模式：C++ 优先、异常回退 Python | 真实代码的 try/except 双路径 |
-| [04/demo_01](04_bar_engine/demo_01_simplest_loop.py) | 回测本质：一个 for 循环 + 防未来函数 | ⚠️ 入门简化（push 传参 + 当日成交） |
-| [04/demo_02](04_bar_engine/demo_02_engine_class.py) | 引擎类化：Broker/Engine 职责拆分 | ⚠️ 当日成交；pull 方向接近真实 |
-| [04/demo_03](04_bar_engine/demo_03_matching_timing.py) | **撮合时序真实口径**：挂单次日开盘撮合、限价判定 | ★ 学 04 以它为准 |
-| [05/demo_01](05_adapter/demo_01_strategy_protocol.py) | 适配器：把任意函数包装成引擎认得的协议对象 | 解释"为什么需要 adapter" |
-| [05/demo_02](05_adapter/demo_02_dual_mode.py) | 双模式策略：single / init+handlebar 手动适配 | ⚠️ 真实靠自动探测（见 demo_03） |
-| [05/demo_03](05_adapter/demo_03_auto_detect.py) | ★ 真实机制：按函数名自动探测模式 + 内省 handlebar 参数 | 对齐 strategy_loader |
+| [01_context_switch](01_global_context/01_context_switch.py) | 全局上下文 + 模块级转发，threading.local + 多线程并发隔离 | 起点，先理解"为什么不能传参" |
+| [02_context_manager](01_global_context/02_context_manager.py) | 用 `with` 上下文管理器自动 set/clear | 防忘记清理、异常也清 |
+| [01_abc_basics](02_abc_factory/01_abc_basics.py) | 抽象基类约束接口；默认实现分级（能力分级） | 02 开始"做 provider" |
+| [02_factory_and_lazy_import](02_abc_factory/02_factory_and_lazy_import.py) | 工厂方法按配置创建实现 + 延迟导入 + dataclass 配置 | ⚠️ 实盘是桩（docstring 有声明） |
+| [01_mixin_basics](03_mixin_assembly/01_mixin_basics.py) | Mixin 按数据维度拆小类再多继承组装 + MRO | provider 从"几个方法"变"完整服务" |
+| [02_dual_path](03_mixin_assembly/02_dual_path.py) | Mixin 内部真实模式：C++ 优先、异常回退 Python | 真实代码的 try/except 双路径 |
+| [01_simplest_loop](04_bar_engine/01_simplest_loop.py) | 回测本质：一个 for 循环 + 防未来函数 | ⚠️ 入门简化（push 传参 + 当日成交） |
+| [02_engine_class](04_bar_engine/02_engine_class.py) | 引擎类化：Broker/Engine 职责拆分 | ⚠️ 当日成交；pull 方向接近真实 |
+| [03_matching_timing](04_bar_engine/03_matching_timing.py) | **撮合时序真实口径**：挂单次日开盘撮合、限价判定 | ★ 学 04 以它为准 |
+| [01_strategy_protocol](05_adapter/01_strategy_protocol.py) | 适配器：把任意函数包装成引擎认得的协议对象 | 解释"为什么需要 adapter" |
+| [02_dual_mode](05_adapter/02_dual_mode.py) | 双模式策略：single / init+handlebar 手动适配 | ⚠️ 真实靠自动探测（见 03_auto_detect） |
+| [03_auto_detect](05_adapter/03_auto_detect.py) | ★ 真实机制：按函数名自动探测模式 + 内省 handlebar 参数 | 对齐 strategy_loader |
 | [06/](06_mini_backtest/) | 完整小框架：api/context/backtest_impl/engine 四件套 | 前面全部概念的组合 |
-| [06/demo_01](06_mini_backtest/demo_01_run_backtest.py) | 跑一次完整回测（体验入口，30 秒不求懂） | 第一步先跑这个 |
-| [06/demo_02](06_mini_backtest/demo_02_t1_semantics.py) | T+1 与挂单撮合语义单独演示（四天场景） | 交易层细节 |
+| [01_run_backtest](06_mini_backtest/01_run_backtest.py) | 跑一次完整回测（体验入口，30 秒不求懂） | 第一步先跑这个 |
+| [02_t1_semantics](06_mini_backtest/02_t1_semantics.py) | T+1 与挂单撮合语义单独演示（四天场景） | 交易层细节 |
 
 > 符号：★ = 真实口径　⚠️ = 教学简化（docstring 内有说明）
-> 04 内部注意：demo_01/02 用**当日收盘成交**（简化），**demo_03 才是真实口径**（次日开盘撮合）。
+> 04 内部注意：01/02 用**当日收盘成交**（简化），**03_matching_timing 才是真实口径**（次日开盘撮合）。
 
-每个 demo 都可独立运行：`python <目录>/demo_xxx.py`。
-06 的多文件框架在目录内跑：`cd 06_mini_backtest && python demo_01_run_backtest.py`。
+每个 demo 都可独立运行：`python <目录>/XX_name.py`。
+06 的多文件框架在目录内跑：`cd 06_mini_backtest && python 01_run_backtest.py`。

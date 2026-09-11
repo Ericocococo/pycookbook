@@ -1,6 +1,14 @@
 # coding=utf-8
 """C++ 优先 / Python 兜底的双路径模式。
 
+Python 3.12。
+运行: python 02_dual_path.py
+
+演示：
+  ① C++ 可用：引擎正常时走快速路径
+  ② C++ 不可用：引擎异常时自动回退 Python
+  ③ 无引擎：引擎为 None 时也能回退
+
 ## 实际问题
 
 ntrade 的 Mixin 不是简单返回固定数据，而是：
@@ -109,25 +117,36 @@ class BacktestProvider(CalendarMixin, SectorMixin, BaseProvider):
 
 
 # ============================================================
-# 运行演示
+# 演示函数
 # ============================================================
 
-if __name__ == "__main__":
-    # 场景1：C++ 引擎可用 → 走快速路径
-    print("=== 场景1：C++ 引擎可用 ===")
+def demo01_cpp_available():
+    """① C++ 引擎可用 — 走快速路径。"""
+    print("① 场景1：C++ 引擎可用")
     engine = FastEngine(available=True)
     provider = BacktestProvider(engine=engine)
     print(f"  交易日: {provider.get_trading_dates('2024-01-01', '2024-01-05')}")
     print(f"  板块:   {provider.get_sector_list()}")
 
-    # 场景2：C++ 引擎不可用 → 自动回退 Python
-    print("\n=== 场景2：C++ 引擎不可用 ===")
+
+def demo02_cpp_unavailable():
+    """② C++ 引擎不可用 — 自动回退 Python。"""
+    print("\n② 场景2：C++ 引擎不可用")
     engine = FastEngine(available=False)
     provider = BacktestProvider(engine=engine)
     print(f"  交易日: {provider.get_trading_dates('2024-01-01', '2024-01-05')}")
     print(f"  板块:   {provider.get_sector_list()}")
 
-    # 场景3：没有引擎 → 也能回退
-    print("\n=== 场景3：引擎为 None ===")
+
+def demo03_no_engine():
+    """③ 引擎为 None — 也能回退到 Python 兜底。"""
+    print("\n③ 场景3：引擎为 None")
     provider = BacktestProvider(engine=None)
     print(f"  交易日: {provider.get_trading_dates('2024-01-01', '2024-01-05')}")
+    print(f"  板块:   {provider.get_sector_list()}")
+
+
+if __name__ == "__main__":
+    demo01_cpp_available()
+    demo02_cpp_unavailable()
+    demo03_no_engine()

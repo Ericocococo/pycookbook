@@ -1,6 +1,13 @@
 # coding=utf-8
 """工厂方法 + 延迟导入 — 按配置自动创建正确的实现。
 
+Python 3.12。
+运行: python 02_factory_and_lazy_import.py
+
+演示：
+  ① 回测模式：传 BacktestConfig，工厂自动创建 BacktestProvider
+  ② 实盘模式：传 LiveConfig，工厂自动创建 LiveProvider
+
 ## 上一节的问题
 
 策略启动时要自己创建 BacktestProvider 或 LiveProvider，
@@ -57,7 +64,7 @@ class LiveConfig:
 
 
 # ============================================================
-# 抽象基类（同 demo_01）
+# 抽象基类（同 01_abc_basics）
 # ============================================================
 
 class BaseProvider(ABC):
@@ -149,12 +156,12 @@ class TradeContext:
 
 
 # ============================================================
-# 运行演示
+# 演示函数
 # ============================================================
 
-if __name__ == "__main__":
-    # ---- 回测：传 BacktestConfig，工厂自动创建 BacktestProvider ----
-    print("=== 回测模式 ===")
+def demo01_backtest_mode():
+    """① 回测模式：传 BacktestConfig，工厂自动创建 BacktestProvider。"""
+    print("① 回测模式")
     ctx = TradeContext.backtest(BacktestConfig(
         symbols=["600519.SH", "000001.SZ"],
         start="2024-01-01",
@@ -163,11 +170,18 @@ if __name__ == "__main__":
     print(f"  模式: {ctx.mode}")
     print(f"  数据: {ctx.provider.get_data('600519.SH')}")
 
-    # ---- 实盘：传 LiveConfig，工厂自动创建 LiveProvider ----
-    print("\n=== 实盘模式 ===")
+
+def demo02_live_mode():
+    """② 实盘模式：传 LiveConfig，工厂自动创建 LiveProvider。"""
+    print("\n② 实盘模式")
     ctx = TradeContext.live(LiveConfig(
         account_id="test_001",
         broker_url="wss://broker.example.com",
     ))
     print(f"  模式: {ctx.mode}")
     print(f"  数据: {ctx.provider.get_data('600519.SH')}")
+
+
+if __name__ == "__main__":
+    demo01_backtest_mode()
+    demo02_live_mode()

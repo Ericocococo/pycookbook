@@ -1,6 +1,14 @@
 # coding=utf-8
 """Mixin 多继承组装 — 把大类拆成小模块。
 
+Python 3.12。
+运行: python 01_mixin_basics.py
+
+演示：
+  ① Mixin 组装：创建 BacktestProvider 并调用各维度方法
+  ② MRO 查看：打印方法解析顺序
+  ③ isinstance 检查：组装后的类仍是 BaseProvider 的子类
+
 【主线提示】策略在 01 定型（无参函数），02 给 provider 立了接口约束，
 本阶段把 provider 从"几个方法"做成"完整服务"：按数据维度拆 Mixin 再组装。
 
@@ -132,24 +140,36 @@ class BacktestProvider(
 
 
 # ============================================================
-# 运行演示
+# 演示函数
 # ============================================================
 
-if __name__ == "__main__":
+def demo01_mixin_assembly():
+    """① Mixin 组装后的 BacktestProvider — 调用各维度方法。"""
+    print("① Mixin 组装后的 BacktestProvider")
     provider = BacktestProvider()
-
-    print("=== Mixin 组装后的 BacktestProvider ===")
     print(f"  行情(MarketMixin):    {provider.get_data('600519.SH')}")
     print(f"  日历(CalendarMixin):  {provider.get_trading_dates('2024-01-01', '2024-01-05')}")
     print(f"  板块(SectorMixin):    {provider.get_sector_list()}")
     print(f"  成份股(SectorMixin):  {provider.get_stock_list_in_sector('沪深300')}")
 
-    # 查看 MRO（方法解析顺序）
-    print("\n=== MRO（方法搜索顺序）===")
+
+def demo02_mro():
+    """② 查看 MRO（方法解析顺序）。"""
+    print("\n② MRO（方法搜索顺序）")
     for i, cls in enumerate(BacktestProvider.__mro__):
         print(f"  {i}. {cls.__name__}")
     # 输出: BacktestProvider → MarketMixin → CalendarMixin → SectorMixin → BaseProvider → ABC → object
     # 搜索 get_data 时：先找 MarketMixin → 找到了，用它的实现
 
-    # isinstance 检查正常工作
-    print(f"\n  isinstance(provider, BaseProvider) = {isinstance(provider, BaseProvider)}")
+
+def demo03_isinstance_check():
+    """③ isinstance 检查 — 组装后的类仍是 BaseProvider 的子类。"""
+    print("\n③ isinstance 检查")
+    provider = BacktestProvider()
+    print(f"  isinstance(provider, BaseProvider) = {isinstance(provider, BaseProvider)}")
+
+
+if __name__ == "__main__":
+    demo01_mixin_assembly()
+    demo02_mro()
+    demo03_isinstance_check()

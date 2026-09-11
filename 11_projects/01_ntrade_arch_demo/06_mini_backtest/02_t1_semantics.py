@@ -1,9 +1,15 @@
 # coding=utf-8
 """T+1 与挂单撮合 — 不跑引擎，直接操作 broker 看交易语义。
 
+Python 3.12。
+运行: cd 06_mini_backtest && python 02_t1_semantics.py
+
+演示：
+  ① T+1 四天场景：挂单买入 → 撮合成交 → T+1 拒卖 → 换日后卖出
+
 ## 演示什么
 
-完整引擎（demo_01）把时序藏在循环里，这里把 broker 单独拎出来，
+完整引擎（01_run_backtest）把时序藏在循环里，这里把 broker 单独拎出来，
 用四天的场景逐步展示交易层语义（对齐真实 C++ CSimulateBroker + Python broker）：
 
 day1 收盘  挂单买入 1000 股
@@ -31,7 +37,12 @@ day4 开盘  撮合：开盘价 11.0 成交，落袋 +1000
 from backtest_impl import BacktestBroker
 
 
-def main():
+def demo01_t1_four_day_scenario():
+    """① T+1 四天场景：
+    day1 挂单买入 → day2 撮合成交 → day2 T+1 拒卖 →
+    day3 换日可卖 → day3 挂卖单 → day4 撮合卖出。
+    """
+    print("① T+1 四天场景")
     broker = BacktestBroker(initial_cash=100_000)
     print("初始资金 100,000\n")
 
@@ -79,4 +90,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    demo01_t1_four_day_scenario()

@@ -1,6 +1,12 @@
 # coding=utf-8
 """最简逐 bar 引擎 — 回测的本质就是一个 for 循环。
 
+Python 3.12。
+运行: python 01_simplest_loop.py
+
+演示：
+  ① 逐bar回测：用均线策略跑最简引擎，打印逐日操作与最终净值
+
 ## 回测到底在干什么？
 
 把历史行情按时间顺序一天一天"喂"给策略函数：
@@ -10,7 +16,7 @@
         记录净值
 
 就这么简单。ntrade 的 C++ BacktestEngine 做的也是同一件事，只是更快。
-【注】两处教学简化，真实引擎不同（详见 demo_03_matching_timing.py 与 00_design 红线 ②③）：
+【注】两处教学简化，真实引擎不同（详见 03_matching_timing.py 与 00_design 红线 ②③）：
   1. 这里按"当日收盘价即时成交"；真实是挂单留到下一根 bar 开盘撮合
   2. 这里用 bars[:i+1] 切片截断防未来；真实是引擎先推进行情再回调策略（只增视图）
 
@@ -135,5 +141,10 @@ def run_backtest(bars, strategy_fn, initial_cash=100_000):
 # 运行
 # ============================================================
 
-if __name__ == "__main__":
+def demo01_run_backtest():
+    """① 逐bar回测：用均线策略跑最简引擎，打印逐日操作与最终净值"""
     run_backtest(BARS, my_strategy)
+
+
+if __name__ == "__main__":
+    demo01_run_backtest()

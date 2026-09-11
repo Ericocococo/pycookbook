@@ -1,9 +1,15 @@
 # coding=utf-8
 """把引擎提取成类 — 分离数据加载、驱动、结果收集。
 
-## 驱动方向的翻转（衔接 demo_01，别被绕晕）
+Python 3.12。
+运行: python 02_engine_class.py
 
-demo_01 是 **push**：引擎把数据/资金/持仓当参数"喂"给策略；
+演示：
+  ① 双标的轮动回测：用 Engine 类驱动双标的策略，打印净值曲线
+
+## 驱动方向的翻转（衔接 01_simplest_loop，别被绕晕）
+
+01_simplest_loop 是 **push**：引擎把数据/资金/持仓当参数"喂"给策略；
 本 demo 翻转为 **pull**：策略拿着 engine 引用，自己调
 engine.get_visible_bars() 向引擎"要"数据。
 真实引擎是 pull 方向（策略体内调模块级函数拉数），06 会组合出最终形态。
@@ -193,7 +199,8 @@ def dual_ma_strategy(engine: BacktestEngine):
 # 运行
 # ============================================================
 
-if __name__ == "__main__":
+def demo01_dual_ma_rotation():
+    """① 双标的轮动回测：用 Engine 类驱动双标的策略，打印净值曲线"""
     bars_dict = {
         "000001.SZ": [
             {"date": "2024-01-02", "close": 9.7},
@@ -220,3 +227,7 @@ if __name__ == "__main__":
     print(f"\n净值曲线:")
     for e in result['equity_curve']:
         print(f"  {e['date']}: {e['equity']:>12,.0f}")
+
+
+if __name__ == "__main__":
+    demo01_dual_ma_rotation()

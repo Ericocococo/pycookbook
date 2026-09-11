@@ -1,6 +1,12 @@
 # coding=utf-8
 """最小可运行回测 — 所有概念的完整组合。
 
+Python 3.12。
+运行: cd 06_mini_backtest && python 01_run_backtest.py
+
+演示：
+  ① 完整回测流程：创建配置 → 工厂创建上下文 → 运行策略 → 查看结果
+
 ## 本 demo 组合了各阶段的概念
 
 1. 全局上下文 + 模块级转发（01_global_context）
@@ -12,7 +18,7 @@
 3. Mixin 组装（03_mixin_assembly）
    → backtest_impl.py 的 MarketMixin + CalendarMixin → BacktestDataProvider
 
-4. 逐 bar 引擎 + 撮合时序（04_bar_engine，含 demo_03 的撮合队列）
+4. 逐 bar 引擎 + 撮合时序（04_bar_engine，含 03_matching_timing 的撮合队列）
    → engine.py 每日：推进 → 换日登记 → 撮合昨日挂单 → 调策略
 
 ## 文件对应关系
@@ -26,8 +32,7 @@
 
 ## 运行方式
 
-    cd 06_mini_backtest
-    python demo_01_run_backtest.py
+    cd 06_mini_backtest && python 01_run_backtest.py
 
 ## 学到什么
 
@@ -59,7 +64,7 @@ def simple_strategy():
     - 最新收盘价 < 均价 1% → 市价挂单卖出
 
     注意：api.order() 只挂单——引擎下一根 bar 开盘才撮合成交
-    （真实 ntrade 同样如此，见 04_bar_engine/demo_03_matching_timing.py）
+    （真实 ntrade 同样如此，见 04_bar_engine/03_matching_timing.py）
     """
     symbol = "000001.SZ"
     bars = api.get_market_data(symbol)
@@ -85,7 +90,12 @@ def simple_strategy():
 # 启动回测
 # ============================================================
 
-if __name__ == "__main__":
+def demo01_run_backtest():
+    """① 完整回测流程：
+    创建配置 → 工厂创建上下文 → 运行策略 → 打印成交记录和净值曲线。
+    """
+    print("① 完整回测流程")
+
     # 1. 创建配置
     config = BacktestConfig(
         symbols=["000001.SZ"],
@@ -101,10 +111,6 @@ if __name__ == "__main__":
     result = ctx.run(simple_strategy)
 
     # 4. 查看结果
-    print("\n" + "=" * 50)
-    print("回测结果")
-    print("=" * 50)
-
     print(f"\n最终资金: {result['final_cash']:,.0f}")
     print(f"最终持仓: {result['final_positions']}")
 
@@ -115,3 +121,7 @@ if __name__ == "__main__":
     print(f"\n净值曲线:")
     for e in result['equity_curve']:
         print(f"  {e['date']}: 净值 {e['equity']:>12,.0f}  现金 {e['cash']:>12,.0f}")
+
+
+if __name__ == "__main__":
+    demo01_run_backtest()
